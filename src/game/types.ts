@@ -3,6 +3,7 @@ export type Role = "civilian" | "undercover" | "mrWhite";
 export type PlayerInput = {
   id: string;
   name: string;
+  avatarUrl?: string;
 };
 
 export type RoleCounts = Record<Role, number>;

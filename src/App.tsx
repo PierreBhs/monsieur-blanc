@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { wordPairs } from "./decks/wordPairs";
 import {
   chooseRandomActiveAssignment,
@@ -13,12 +13,13 @@ const savedCountsKey = "mr-white.counts";
 const savedShowRolesKey = "mr-white.show-roles";
 
 const defaultPlayers: PlayerInput[] = [
-  { id: "player-1", name: "Alex" },
-  { id: "player-2", name: "Sam" },
-  { id: "player-3", name: "Nina" },
-  { id: "player-4", name: "Leo" },
-  { id: "player-5", name: "Maya" },
+  { id: "player-1", name: "Player 1" },
+  { id: "player-2", name: "Player 2" },
+  { id: "player-3", name: "Player 3" },
+  { id: "player-4", name: "Player 4" },
+  { id: "player-5", name: "Player 5" },
 ];
+const legacyDefaultNames = ["Alex", "Sam", "Nina", "Leo", "Maya"];
 
 const defaultCounts: RoleCounts = {
   civilian: 3,
@@ -71,6 +72,27 @@ function App() {
 
   function updatePlayerName(id: string, name: string) {
     updatePlayers(players.map((player) => (player.id === id ? { ...player, name } : player)));
+  }
+
+  function updatePlayerAvatar(id: string, avatarUrl: string) {
+    updatePlayers(players.map((player) => (player.id === id ? { ...player, avatarUrl } : player)));
+  }
+
+  function changePlayerAvatar(id: string, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      if (typeof reader.result === "string") {
+        updatePlayerAvatar(id, reader.result);
+      }
+    });
+    reader.readAsDataURL(file);
   }
 
   function addPlayer() {
@@ -290,7 +312,7 @@ function App() {
                     type="button"
                     onClick={() => selectElimination(assignment)}
                   >
-                    <span className="player-token">{initials(assignment.player.name)}</span>
+                    <PlayerAvatar className="player-token" player={assignment.player} />
                     <span>{assignment.player.name}</span>
                     <span>Eliminate</span>
                   </button>
@@ -371,7 +393,7 @@ function App() {
           <div className="brand-lockup">
             <img src="/mr-white-mark.svg" alt="" />
             <div>
-              <h1>Mr. White</h1>
+              <h1>M.Blanc</h1>
               <p>{deckStats}</p>
             </div>
           </div>
@@ -393,7 +415,12 @@ function App() {
             <div className="player-list">
               {players.map((player, index) => (
                 <div className="player-row" key={player.id}>
-                  <span className="player-token">{initials(player.name) || String(index + 1)}</span>
+                  <PlayerAvatar
+                    className="player-token"
+                    fallback={String(index + 1)}
+                    player={player}
+                    onImageChange={(event) => changePlayerAvatar(player.id, event)}
+                  />
                   <input
                     aria-label={`Player ${index + 1} name`}
                     value={player.name}
@@ -477,7 +504,7 @@ function PlayerStrip({ assignments, eliminatedIds, turnStarterId }: PlayerStripP
 
         return (
           <div className={`strip-token ${isEliminated ? "is-out" : ""} ${isStarter ? "is-starter" : ""}`} key={assignment.player.id}>
-            <span>{initials(assignment.player.name)}</span>
+            <PlayerAvatar className="strip-avatar" player={assignment.player} />
             <strong>{assignment.player.name}</strong>
           </div>
         );
@@ -489,10 +516,34 @@ function PlayerStrip({ assignments, eliminatedIds, turnStarterId }: PlayerStripP
 function PlayerSpotlight({ assignment }: { assignment: PlayerAssignment }) {
   return (
     <div className="player-spotlight">
-      <span className="big-token">{initials(assignment.player.name)}</span>
+      <PlayerAvatar className="big-token" player={assignment.player} />
       <h1>{assignment.player.name}</h1>
     </div>
   );
+}
+
+type PlayerAvatarProps = {
+  className: string;
+  player: PlayerInput;
+  fallback?: string;
+  onImageChange?: (event: ChangeEvent<HTMLInputElement>) => void;
+};
+
+function PlayerAvatar({ className, player, fallback, onImageChange }: PlayerAvatarProps) {
+  const label = initials(player.name) || fallback || "?";
+  const avatarClassName = `player-avatar ${className}`;
+  const content = player.avatarUrl ? <img src={player.avatarUrl} alt="" /> : label;
+
+  if (onImageChange) {
+    return (
+      <label className={`${avatarClassName} is-editable`} title={`Change image for ${player.name}`}>
+        {content}
+        <input className="avatar-input" type="file" accept="image/*" onChange={onImageChange} />
+      </label>
+    );
+  }
+
+  return <span className={avatarClassName}>{content}</span>;
 }
 
 type RoleCounterProps = {
@@ -528,10 +579,22 @@ function loadPlayers(): PlayerInput[] {
 
   try {
     const parsed = JSON.parse(saved) as PlayerInput[];
+
+    if (isLegacyDefaultPlayers(parsed)) {
+      return defaultPlayers;
+    }
+
     return parsed.length >= 3 ? parsed : defaultPlayers;
   } catch {
     return defaultPlayers;
   }
+}
+
+function isLegacyDefaultPlayers(players: PlayerInput[]): boolean {
+  return (
+    players.length === legacyDefaultNames.length &&
+    players.every((player, index) => player.id === `player-${index + 1}` && player.name === legacyDefaultNames[index])
+  );
 }
 
 function loadCounts(): RoleCounts {

@@ -196,6 +196,29 @@ h2 {
   font-size: 0.9rem;
 }
 
+.player-avatar {
+  overflow: hidden;
+}
+
+.player-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-avatar.is-editable {
+  cursor: pointer;
+}
+
+.player-avatar.is-editable:hover {
+  border-color: var(--primary);
+}
+
+.avatar-input {
+  display: none;
+}
+
 .big-token {
   width: 116px;
   height: 116px;
