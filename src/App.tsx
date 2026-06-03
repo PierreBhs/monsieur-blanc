@@ -27,7 +27,7 @@ const defaultCounts: RoleCounts = {
   mrWhite: 1,
 };
 
-type PlayPhase = "reveal" | "turn" | "vote" | "mrWhiteGuess" | "gameOver";
+type PlayPhase = "reveal" | "turn" | "vote" | "mrWhiteGuess" | "eliminationReveal" | "gameOver";
 
 function App() {
   const [players, setPlayers] = useState<PlayerInput[]>(loadPlayers);
@@ -204,16 +204,26 @@ function App() {
     const nextStatus = evaluateGameStatus(round.assignments, nextEliminatedIds);
 
     setEliminatedIds(nextEliminatedIds);
-    setPendingElimination(null);
+    setPendingElimination(assignment);
     setMrWhiteGuess("");
     setGameStatus(nextStatus);
     setLastElimination(`${assignment.player.name} is out.`);
-    if (nextStatus.state === "won") {
+    setPhase("eliminationReveal");
+  }
+
+  function continueAfterElimination() {
+    if (!round) {
+      return;
+    }
+
+    setPendingElimination(null);
+
+    if (gameStatus.state === "won") {
       setPhase("gameOver");
       return;
     }
 
-    startNextTurn(round.assignments, nextEliminatedIds);
+    startNextTurn(round.assignments, eliminatedIds);
   }
 
   function resetRound() {
@@ -353,6 +363,23 @@ function App() {
                   Submit guess
                 </button>
               </div>
+            </div>
+          )}
+
+          {phase === "eliminationReveal" && pendingElimination && (
+            <div className="round-card elimination-card">
+              <div className="phase-band danger-band">
+                <span>Eliminated</span>
+                <strong>{roleLabel(pendingElimination.role)}</strong>
+              </div>
+              <PlayerSpotlight assignment={pendingElimination} />
+              <div className="elimination-role">
+                <span>{pendingElimination.player.name} is eliminated</span>
+                <strong>{roleLabel(pendingElimination.role)}</strong>
+              </div>
+              <button className="primary-button" type="button" onClick={continueAfterElimination}>
+                Continue
+              </button>
             </div>
           )}
 

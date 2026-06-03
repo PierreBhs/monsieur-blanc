@@ -428,6 +428,7 @@ input:focus {
 .turn-card,
 .vote-card,
 .guess-card,
+.elimination-card,
 .end-card {
   align-content: start;
   text-align: center;
@@ -480,6 +481,32 @@ input:focus {
   line-height: 0.95;
   letter-spacing: 0;
   text-shadow: 3px 3px 0 #c9f4db;
+}
+
+.elimination-card {
+  justify-items: center;
+}
+
+.elimination-role {
+  display: grid;
+  gap: 8px;
+  width: min(420px, 100%);
+  border: 3px solid var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--surface-2);
+  box-shadow: 5px 5px 0 var(--danger);
+}
+
+.elimination-role span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.elimination-role strong {
+  overflow-wrap: anywhere;
+  font-size: clamp(2rem, 8vw, 4rem);
+  line-height: 1;
 }
 
 .vote-list,
