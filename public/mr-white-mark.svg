@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Mr White mark">
+  <rect width="160" height="160" rx="18" fill="#111111"/>
+  <path d="M39 44h82v12H39zM48 67h64v12H48zM57 90h46v12H57z" fill="#f5f5f5"/>
+  <path d="M37 121h86" stroke="#00d4aa" stroke-width="10" stroke-linecap="square"/>
+  <path d="M36 36h88v88H36z" fill="none" stroke="#333333" stroke-width="6"/>
+</svg>
