@@ -232,7 +232,7 @@ function App() {
 
   if (round) {
     return (
-      <main className="app-shell">
+      <main key="round" className="app-shell">
         <section className="round-layout">
           <div className="top-bar">
             <button className="secondary-button" type="button" onClick={resetRound}>
@@ -388,7 +388,7 @@ function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main key="setup" className="app-shell">
       <section className="setup-layout">
         <div className="setup-header">
           <div className="brand-lockup">
