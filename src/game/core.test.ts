@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { chooseRandomActiveAssignment, createRound, evaluateGameStatus, isCorrectMrWhiteGuess } from "./core";
+import {
+  chooseRandomActiveAssignment,
+  createRound,
+  evaluateGameStatus,
+  isCorrectMrWhiteGuess,
+} from "./core";
 import type { PlayerInput, RoleCounts, WordPair } from "./types";
 
 const players: PlayerInput[] = [
@@ -103,6 +108,12 @@ describe("chooseRandomActiveAssignment", () => {
     const eliminatedIds = new Set(round.assignments.slice(1).map((assignment) => assignment.player.id));
 
     expect(chooseRandomActiveAssignment(round.assignments, eliminatedIds, fixedRng)).toBe(firstAssignment);
+  });
+
+  it("avoids the previous starter when another active player can start", () => {
+    const round = createRound({ players, counts, deck }, fixedRng);
+
+    expect(chooseRandomActiveAssignment(round.assignments, new Set(), fixedRng, "1").player.id).toBe("2");
   });
 
   it("rejects a turn with no active players", () => {

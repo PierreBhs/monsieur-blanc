@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { WordHelp } from "./WordHelp";
 import { wordPairs } from "./decks/wordPairs";
 import {
@@ -12,13 +12,18 @@ import type { GameStatus, PlayerAssignment, PlayerInput, RoleCounts, Round } fro
 const savedPlayersKey = "mr-white.players";
 const savedCountsKey = "mr-white.counts";
 const savedShowRolesKey = "mr-white.show-roles";
+const savedTimerEnabledKey = "mr-white.timer-enabled";
+const savedTimerSecondsKey = "mr-white.timer-seconds";
+const defaultTimerSeconds = 120;
+const minTimerSeconds = 30;
+const maxTimerSeconds = 600;
 
 const defaultPlayers: PlayerInput[] = [
-  { id: "player-1", name: "Player 1" },
-  { id: "player-2", name: "Player 2" },
-  { id: "player-3", name: "Player 3" },
-  { id: "player-4", name: "Player 4" },
-  { id: "player-5", name: "Player 5" },
+  { id: "player-1", name: "" },
+  { id: "player-2", name: "" },
+  { id: "player-3", name: "" },
+  { id: "player-4", name: "" },
+  { id: "player-5", name: "" },
 ];
 const legacyDefaultNames = ["Alex", "Sam", "Nina", "Leo", "Maya"];
 
@@ -34,11 +39,15 @@ function App() {
   const [players, setPlayers] = useState<PlayerInput[]>(loadPlayers);
   const [counts, setCounts] = useState<RoleCounts>(loadCounts);
   const [showRoles, setShowRoles] = useState(loadShowRoles);
+  const [timerEnabled, setTimerEnabled] = useState(loadTimerEnabled);
+  const [timerSeconds, setTimerSeconds] = useState(loadTimerSeconds);
   const [round, setRound] = useState<Round | null>(null);
   const [phase, setPhase] = useState<PlayPhase>("reveal");
   const [activeIndex, setActiveIndex] = useState(0);
   const [isRevealed, setIsRevealed] = useState(false);
   const [turnStarter, setTurnStarter] = useState<PlayerAssignment | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(timerSeconds);
+  const [timerRunning, setTimerRunning] = useState(false);
   const [eliminatedIds, setEliminatedIds] = useState<Set<string>>(new Set());
   const [pendingElimination, setPendingElimination] = useState<PlayerAssignment | null>(null);
   const [mrWhiteGuess, setMrWhiteGuess] = useState("");
@@ -57,6 +66,24 @@ function App() {
     return `${wordPairs.length} pairs across ${categories.size} categories`;
   }, []);
 
+  useEffect(() => {
+    if (phase !== "turn" || !timerEnabled || !timerRunning || remainingSeconds <= 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setRemainingSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [phase, remainingSeconds, timerEnabled, timerRunning]);
+
+  useEffect(() => {
+    if (remainingSeconds === 0) {
+      setTimerRunning(false);
+    }
+  }, [remainingSeconds]);
+
   function updatePlayers(nextPlayers: PlayerInput[]) {
     setPlayers(nextPlayers);
     localStorage.setItem(savedPlayersKey, JSON.stringify(nextPlayers));
@@ -70,6 +97,17 @@ function App() {
   function updateShowRoles(nextShowRoles: boolean) {
     setShowRoles(nextShowRoles);
     localStorage.setItem(savedShowRolesKey, JSON.stringify(nextShowRoles));
+  }
+
+  function updateTimerEnabled(nextTimerEnabled: boolean) {
+    setTimerEnabled(nextTimerEnabled);
+    localStorage.setItem(savedTimerEnabledKey, JSON.stringify(nextTimerEnabled));
+  }
+
+  function updateTimerSeconds(nextTimerSeconds: number) {
+    setTimerSeconds(nextTimerSeconds);
+    setRemainingSeconds(nextTimerSeconds);
+    localStorage.setItem(savedTimerSecondsKey, JSON.stringify(nextTimerSeconds));
   }
 
   function updatePlayerName(id: string, name: string) {
@@ -98,8 +136,7 @@ function App() {
   }
 
   function addPlayer() {
-    const nextNumber = players.length + 1;
-    updatePlayers([...players, { id: crypto.randomUUID(), name: `Player ${nextNumber}` }]);
+    updatePlayers([...players, { id: crypto.randomUUID(), name: "" }]);
     updateCounts({ ...counts, civilian: counts.civilian + 1 });
   }
 
@@ -126,6 +163,10 @@ function App() {
     updateCounts({ ...counts, [role]: nextValue });
   }
 
+  function changeTimerSeconds(delta: number) {
+    updateTimerSeconds(clamp(timerSeconds + delta, minTimerSeconds, maxTimerSeconds));
+  }
+
   function startRound() {
     setError("");
 
@@ -141,6 +182,8 @@ function App() {
       setActiveIndex(0);
       setIsRevealed(false);
       setTurnStarter(null);
+      setRemainingSeconds(timerSeconds);
+      setTimerRunning(false);
       setEliminatedIds(new Set());
       setPendingElimination(null);
       setMrWhiteGuess("");
@@ -167,8 +210,15 @@ function App() {
   }
 
   function startNextTurn(assignments: PlayerAssignment[], nextEliminatedIds: Set<string>) {
-    setTurnStarter(chooseRandomActiveAssignment(assignments, nextEliminatedIds));
+    setTurnStarter(chooseRandomActiveAssignment(assignments, nextEliminatedIds, Math.random, turnStarter?.player.id));
+    setRemainingSeconds(timerSeconds);
+    setTimerRunning(timerEnabled);
     setPhase("turn");
+  }
+
+  function startVote() {
+    setTimerRunning(false);
+    setPhase("vote");
   }
 
   function selectElimination(assignment: PlayerAssignment) {
@@ -240,6 +290,8 @@ function App() {
     setActiveIndex(0);
     setIsRevealed(false);
     setTurnStarter(null);
+    setRemainingSeconds(timerSeconds);
+    setTimerRunning(false);
     setEliminatedIds(new Set());
     setPendingElimination(null);
     setMrWhiteGuess("");
@@ -306,9 +358,23 @@ function App() {
                 </p>
               </div>
 
+              {timerEnabled && (
+                <DiscussionTimer
+                  remainingSeconds={remainingSeconds}
+                  timerRunning={timerRunning}
+                  timerSeconds={timerSeconds}
+                  onPause={() => setTimerRunning(false)}
+                  onReset={() => {
+                    setRemainingSeconds(timerSeconds);
+                    setTimerRunning(true);
+                  }}
+                  onStart={() => setTimerRunning(true)}
+                />
+              )}
+
               {lastElimination && <p className="status-line">{lastElimination}</p>}
 
-              <button className="primary-button" type="button" onClick={() => setPhase("vote")}>
+              <button className="primary-button" type="button" onClick={startVote}>
                 Vote after discussion
               </button>
             </div>
@@ -460,6 +526,7 @@ function App() {
                   />
                   <input
                     aria-label={`Player ${index + 1} name`}
+                    placeholder={`Player ${index + 1}`}
                     value={player.name}
                     onChange={(event) => updatePlayerName(player.id, event.target.value)}
                   />
@@ -512,6 +579,23 @@ function App() {
               />
             </label>
 
+            <label className="toggle-row">
+              <span>Discussion timer</span>
+              <input
+                type="checkbox"
+                checked={timerEnabled}
+                onChange={(event) => updateTimerEnabled(event.target.checked)}
+              />
+            </label>
+
+            {timerEnabled && (
+              <TimerSetting
+                seconds={timerSeconds}
+                onMinus={() => changeTimerSeconds(-30)}
+                onPlus={() => changeTimerSeconds(30)}
+              />
+            )}
+
             <div className="start-area">
               {error && <p className="error-text">{error}</p>}
               <button className="primary-button" type="button" onClick={startRound} disabled={roleMismatch}>
@@ -545,6 +629,39 @@ function PlayerStrip({ assignments, eliminatedIds, turnStarterId }: PlayerStripP
           </div>
         );
       })}
+    </div>
+  );
+}
+
+type DiscussionTimerProps = {
+  remainingSeconds: number;
+  timerRunning: boolean;
+  timerSeconds: number;
+  onPause: () => void;
+  onReset: () => void;
+  onStart: () => void;
+};
+
+function DiscussionTimer({
+  remainingSeconds,
+  timerRunning,
+  timerSeconds,
+  onPause,
+  onReset,
+  onStart,
+}: DiscussionTimerProps) {
+  return (
+    <div className={`discussion-timer${remainingSeconds === 0 ? " is-finished" : ""}`}>
+      <span>{remainingSeconds === 0 ? "Time's up" : "Discussion timer"}</span>
+      <strong>{formatTimer(remainingSeconds)}</strong>
+      <div className="button-row">
+        <button className="secondary-button" type="button" onClick={timerRunning ? onPause : onStart}>
+          {timerRunning ? "Pause" : "Start"}
+        </button>
+        <button className="secondary-button" type="button" onClick={onReset}>
+          Reset {formatTimer(timerSeconds)}
+        </button>
+      </div>
     </div>
   );
 }
@@ -613,6 +730,29 @@ function RoleCounter({ label, value, onMinus, onPlus }: RoleCounterProps) {
   );
 }
 
+type TimerSettingProps = {
+  seconds: number;
+  onMinus: () => void;
+  onPlus: () => void;
+};
+
+function TimerSetting({ seconds, onMinus, onPlus }: TimerSettingProps) {
+  return (
+    <div className="timer-setting">
+      <span>Duration</span>
+      <div>
+        <button className="icon-button" type="button" title="Decrease timer" onClick={onMinus}>
+          -
+        </button>
+        <strong>{formatTimer(seconds)}</strong>
+        <button className="icon-button" type="button" title="Increase timer" onClick={onPlus}>
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function loadPlayers(): PlayerInput[] {
   const saved = localStorage.getItem(savedPlayersKey);
 
@@ -623,11 +763,25 @@ function loadPlayers(): PlayerInput[] {
   try {
     const parsed = JSON.parse(saved) as PlayerInput[];
 
-    if (isLegacyDefaultPlayers(parsed)) {
+    if (isLegacyDefaultPlayers(parsed) || isGeneratedDefaultPlayers(parsed)) {
+      localStorage.setItem(savedPlayersKey, JSON.stringify(defaultPlayers));
       return defaultPlayers;
     }
 
-    return parsed.length >= 3 ? parsed : defaultPlayers;
+    if (parsed.length < 3) {
+      return defaultPlayers;
+    }
+
+    const normalizedPlayers = parsed.map((player, index) => ({
+      ...player,
+      name: isGeneratedDefaultName(player.name, index) ? "" : player.name,
+    }));
+
+    if (normalizedPlayers.some((player, index) => player.name !== parsed[index].name)) {
+      localStorage.setItem(savedPlayersKey, JSON.stringify(normalizedPlayers));
+    }
+
+    return normalizedPlayers;
   } catch {
     return defaultPlayers;
   }
@@ -638,6 +792,14 @@ function isLegacyDefaultPlayers(players: PlayerInput[]): boolean {
     players.length === legacyDefaultNames.length &&
     players.every((player, index) => player.id === `player-${index + 1}` && player.name === legacyDefaultNames[index])
   );
+}
+
+function isGeneratedDefaultPlayers(players: PlayerInput[]): boolean {
+  return players.every((player, index) => isGeneratedDefaultName(player.name, index));
+}
+
+function isGeneratedDefaultName(name: string, index: number): boolean {
+  return name.trim() === `Player ${index + 1}`;
 }
 
 function loadCounts(): RoleCounts {
@@ -658,6 +820,24 @@ function loadShowRoles(): boolean {
   const saved = localStorage.getItem(savedShowRolesKey);
 
   return saved ? JSON.parse(saved) === true : false;
+}
+
+function loadTimerEnabled(): boolean {
+  const saved = localStorage.getItem(savedTimerEnabledKey);
+
+  return saved ? JSON.parse(saved) === true : false;
+}
+
+function loadTimerSeconds(): number {
+  const saved = localStorage.getItem(savedTimerSecondsKey);
+
+  if (!saved) {
+    return defaultTimerSeconds;
+  }
+
+  const parsedSeconds = Number(JSON.parse(saved));
+
+  return Number.isFinite(parsedSeconds) ? clamp(parsedSeconds, minTimerSeconds, maxTimerSeconds) : defaultTimerSeconds;
 }
 
 function trimCountsToPlayers(counts: RoleCounts, playerCount: number): RoleCounts {
@@ -690,6 +870,17 @@ function winnerLabel(winner: Exclude<GameStatus, { state: "playing" }>["winner"]
   }
 
   return winner === "undercovers" ? "Undercovers" : "Civilians";
+}
+
+function formatTimer(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function initials(name: string): string {
