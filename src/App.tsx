@@ -538,7 +538,14 @@ function PlayerAvatar({ className, player, fallback, onImageChange }: PlayerAvat
     return (
       <label className={`${avatarClassName} is-editable`} title={`Change image for ${player.name}`}>
         {content}
-        <input className="avatar-input" type="file" accept="image/*" onChange={onImageChange} />
+        <input
+          aria-label={`Change image for ${player.name}`}
+          className="avatar-input"
+          type="file"
+          accept="image/*"
+          capture="user"
+          onChange={onImageChange}
+        />
       </label>
     );
   }
