@@ -121,6 +121,7 @@ export function chooseRandomActiveAssignment(
   assignments: PlayerAssignment[],
   eliminatedIds: Set<string>,
   rng: Rng = Math.random,
+  excludedPlayerId?: string,
 ): PlayerAssignment {
   const activeAssignments = assignments.filter((assignment) => !eliminatedIds.has(assignment.player.id));
 
@@ -128,7 +129,12 @@ export function chooseRandomActiveAssignment(
     throw new Error("There are no active players.");
   }
 
-  return activeAssignments[Math.floor(rng() * activeAssignments.length)];
+  const eligibleAssignments =
+    excludedPlayerId && activeAssignments.length > 1
+      ? activeAssignments.filter((assignment) => assignment.player.id !== excludedPlayerId)
+      : activeAssignments;
+
+  return eligibleAssignments[Math.floor(rng() * eligibleAssignments.length)];
 }
 
 export function isCorrectMrWhiteGuess(guess: string, civilianWord: string): boolean {

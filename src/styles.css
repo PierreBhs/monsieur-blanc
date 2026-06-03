@@ -333,7 +333,8 @@ input:focus {
 }
 
 .role-counter,
-.toggle-row {
+.toggle-row,
+.timer-setting {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -353,9 +354,21 @@ input:focus {
   gap: 6px;
 }
 
+.timer-setting > div {
+  display: grid;
+  grid-template-columns: 40px 64px 40px;
+  align-items: center;
+  gap: 6px;
+}
+
 .role-counter strong {
   text-align: center;
   font-size: 1.25rem;
+}
+
+.timer-setting strong {
+  text-align: center;
+  font-size: 1.05rem;
 }
 
 .count-warning,
@@ -450,6 +463,28 @@ input:focus {
 
 .strip-token.is-out {
   opacity: 0.42;
+}
+
+.discussion-timer > span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.discussion-timer {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.discussion-timer strong {
+  font-size: clamp(2.2rem, 9vw, 4.6rem);
+  line-height: 0.95;
+  text-shadow: 3px 3px 0 var(--sky);
+}
+
+.discussion-timer.is-finished strong {
+  color: #b01645;
+  text-shadow: 3px 3px 0 #ffd6e4;
 }
 
 .round-card {
