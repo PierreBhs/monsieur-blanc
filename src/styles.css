@@ -610,6 +610,8 @@ input:focus {
 
 .help-flags {
   display: flex;
+  flex: 1;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -810,5 +812,19 @@ input:focus {
 
   .summary-row span:last-child {
     text-align: left;
+  }
+
+  .help-window {
+    padding: 18px;
+  }
+
+  .help-flag {
+    width: 34px;
+    height: 30px;
+    font-size: 1.1rem;
+  }
+
+  .help-flags {
+    gap: 4px;
   }
 }
