@@ -44,6 +44,7 @@ function App() {
   const [gameStatus, setGameStatus] = useState<GameStatus>({ state: "playing" });
   const [lastElimination, setLastElimination] = useState("");
   const [error, setError] = useState("");
+  const [leavingId, setLeavingId] = useState<string | null>(null);
 
   const totalRoles = counts.civilian + counts.undercover + counts.mrWhite;
   const activeAssignment = round?.assignments[activeIndex];
@@ -107,9 +108,15 @@ function App() {
       return;
     }
 
-    const nextPlayers = players.filter((player) => player.id !== id);
-    updatePlayers(nextPlayers);
-    updateCounts(trimCountsToPlayers(counts, nextPlayers.length));
+    if (leavingId) return;
+
+    setLeavingId(id);
+    setTimeout(() => {
+      const nextPlayers = players.filter((player) => player.id !== id);
+      updatePlayers(nextPlayers);
+      updateCounts(trimCountsToPlayers(counts, nextPlayers.length));
+      setLeavingId(null);
+    }, 180);
   }
 
   function changeCount(role: keyof RoleCounts, delta: number) {
@@ -242,7 +249,7 @@ function App() {
 
   if (round) {
     return (
-      <main className="app-shell">
+      <main key="round" className="app-shell">
         <section className="round-layout">
           <div className="top-bar">
             <button className="secondary-button" type="button" onClick={resetRound}>
@@ -415,7 +422,7 @@ function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main key="setup" className="app-shell">
       <section className="setup-layout">
         <div className="setup-header">
           <div className="brand-lockup">
@@ -442,7 +449,7 @@ function App() {
 
             <div className="player-list">
               {players.map((player, index) => (
-                <div className="player-row" key={player.id}>
+                <div className={`player-row${leavingId === player.id ? " is-leaving" : ""}`} key={player.id}>
                   <PlayerAvatar
                     className="player-token"
                     fallback={String(index + 1)}
