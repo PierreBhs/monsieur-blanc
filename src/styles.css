@@ -65,6 +65,17 @@ button {
   }
 }
 
+@keyframes page-out {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
 .setup-layout,
 .round-layout {
   width: min(1080px, 100%);
@@ -196,6 +207,11 @@ h2 {
   grid-template-columns: 44px minmax(0, 1fr) 40px;
   align-items: center;
   gap: 10px;
+  animation: page-in 0.18s ease-out both;
+}
+
+.player-row.is-leaving {
+  animation: page-out 0.10s ease-in both;
 }
 
 .player-token,
