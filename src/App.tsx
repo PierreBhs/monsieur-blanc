@@ -1,4 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from "react";
+import { WordHelp } from "./WordHelp";
 import { wordPairs } from "./decks/wordPairs";
 import {
   chooseRandomActiveAssignment,
@@ -280,6 +281,7 @@ function App() {
               ) : (
                 <>
                   <div className="secret-box">
+                    {activeAssignment.word && <WordHelp word={activeAssignment.word} />}
                     {showRoles && <div className="role-name">{roleLabel(activeAssignment.role)}</div>}
                     <div className="secret-word">{activeAssignment.word ?? "No word"}</div>
                   </div>
@@ -442,7 +444,7 @@ function App() {
           <section className="panel player-panel">
             <div className="panel-heading">
               <h2>Players</h2>
-              <button className="icon-button" type="button" title="Add player" onClick={addPlayer}>
+              <button className="icon-button add-player-button" type="button" title="Add player" onClick={addPlayer}>
                 +
               </button>
             </div>
