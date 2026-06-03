@@ -10,6 +10,7 @@
   --surface: #fff9e7;
   --surface-2: #ffffff;
   --surface-3: #f6f0d8;
+  --disabled-surface: #dfdfdf;
   --border: #20170f;
   --text: #20170f;
   --muted: #6e5b45;
@@ -356,6 +357,12 @@ input:focus {
 
 .primary-button:hover {
   background: var(--primary-strong);
+}
+
+.primary-button:disabled {
+  background: var(--disabled-surface);
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
 .secondary-button {

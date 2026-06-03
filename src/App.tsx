@@ -113,6 +113,7 @@ function App() {
   }
 
   function changeCount(role: keyof RoleCounts, delta: number) {
+    if (delta > 0 && totalRoles >= players.length) return;
     const nextValue = Math.max(0, counts[role] + delta);
     updateCounts({ ...counts, [role]: nextValue });
   }
@@ -477,8 +478,7 @@ function App() {
 
             <div className="start-area">
               {error && <p className="error-text">{error}</p>}
-              {roleMismatch && <p className="error-text">Role count must match player count.</p>}
-              <button className="primary-button" type="button" onClick={startRound}>
+              <button className="primary-button" type="button" onClick={startRound} disabled={roleMismatch}>
                 Start round
               </button>
             </div>
