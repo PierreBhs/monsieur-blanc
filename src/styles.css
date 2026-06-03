@@ -54,10 +54,33 @@ button {
   padding: 28px;
 }
 
+@keyframes page-in {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes page-out {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
 .setup-layout,
 .round-layout {
   width: min(1080px, 100%);
   margin: 0 auto;
+  animation: page-in 0.2s ease-out;
 }
 
 .setup-header {
@@ -184,6 +207,11 @@ h2 {
   grid-template-columns: 44px minmax(0, 1fr) 40px;
   align-items: center;
   gap: 10px;
+  animation: page-in 0.18s ease-out both;
+}
+
+.player-row.is-leaving {
+  animation: page-out 0.10s ease-in both;
 }
 
 .player-token,
@@ -374,6 +402,7 @@ input:focus {
 .top-bar {
   margin-bottom: 14px;
   color: var(--muted);
+  animation: page-in 0.2s ease-out;
 }
 
 .player-strip {
@@ -418,6 +447,7 @@ input:focus {
   gap: 24px;
   min-height: 520px;
   padding: 28px;
+  animation: page-in 0.18s ease-out;
 }
 
 .reveal-card {
@@ -428,6 +458,7 @@ input:focus {
 .turn-card,
 .vote-card,
 .guess-card,
+.elimination-card,
 .end-card {
   align-content: start;
   text-align: center;
@@ -482,6 +513,32 @@ input:focus {
   text-shadow: 3px 3px 0 #c9f4db;
 }
 
+.elimination-card {
+  justify-items: center;
+}
+
+.elimination-role {
+  display: grid;
+  gap: 8px;
+  width: min(420px, 100%);
+  border: 3px solid var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--surface-2);
+  box-shadow: 5px 5px 0 var(--danger);
+}
+
+.elimination-role span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.elimination-role strong {
+  overflow-wrap: anywhere;
+  font-size: clamp(2rem, 8vw, 4rem);
+  line-height: 1;
+}
+
 .vote-list,
 .summary-list {
   display: grid;
@@ -502,7 +559,17 @@ input:focus {
   color: var(--text);
   background: var(--surface-2);
   text-align: left;
+  animation: page-in 0.18s ease-out both;
 }
+
+.vote-row:nth-child(1), .summary-row:nth-child(1) { animation-delay: 30ms; }
+.vote-row:nth-child(2), .summary-row:nth-child(2) { animation-delay: 60ms; }
+.vote-row:nth-child(3), .summary-row:nth-child(3) { animation-delay: 90ms; }
+.vote-row:nth-child(4), .summary-row:nth-child(4) { animation-delay: 120ms; }
+.vote-row:nth-child(5), .summary-row:nth-child(5) { animation-delay: 150ms; }
+.vote-row:nth-child(6), .summary-row:nth-child(6) { animation-delay: 180ms; }
+.vote-row:nth-child(7), .summary-row:nth-child(7) { animation-delay: 210ms; }
+.vote-row:nth-child(8), .summary-row:nth-child(8) { animation-delay: 240ms; }
 
 .vote-row:hover {
   background: #ffef9a;
