@@ -1,9 +1,28 @@
+/**
+ * Test plan — src/game/core.ts (core game logic)
+ *
+ * Functions under test:
+ *   - createRound:        config validation + role/word assignment for a round
+ *   - assignRoles:        maps the role pool onto players (RNG-shuffled)
+ *   - selectWordPair:     draws a pair from the deck via the injected RNG
+ *   - validateConfig:     enforces player/role/deck rules (covered via createRound)
+ *   - evaluateGameStatus: win/loss/playing evaluation from eliminations
+ *   - chooseRandomActiveAssignment: picks the next active turn starter
+ *   - isCorrectMrWhiteGuess: case/space-insensitive word match
+ *
+ * Scenarios: happy paths, every validation/error path, win-condition edge cases
+ * (only 1 civilian left, no civilians, Mr. White survival), turn progression
+ * (skip eliminated, avoid previous starter, no active players), and RNG
+ * determinism/non-determinism. All RNG is injected so tests are deterministic.
+ */
 import { describe, expect, it } from "vitest";
 import {
+  assignRoles,
   chooseRandomActiveAssignment,
   createRound,
   evaluateGameStatus,
   isCorrectMrWhiteGuess,
+  selectWordPair,
 } from "../../src/game/core";
 import type { PlayerInput, RoleCounts, WordPair } from "../../src/game/types";
 
@@ -95,6 +114,74 @@ describe("createRound", () => {
     expect(() => createRound({ players: duplicateNamePlayers, counts, deck })).toThrow(
       "unique name",
     );
+  });
+
+  it("draws a valid word pair from the deck", () => {
+    const multiDeck: WordPair[] = [
+      { id: "a", category: "x", civilian: "Apple", undercover: "Pear" },
+      { id: "b", category: "y", civilian: "Dog", undercover: "Wolf" },
+    ];
+
+    const round = createRound({ players, counts, deck: multiDeck });
+
+    expect(multiDeck).toContainEqual(round.wordPair);
+    const civilian = round.assignments.find((assignment) => assignment.role === "civilian");
+    expect(civilian?.word).toBe(round.wordPair.civilian);
+  });
+
+  it("does not always produce the same role arrangement across seeds", () => {
+    const arrangements = new Set(
+      [0, 0.2, 0.4, 0.6, 0.8, 0.99].map((seed) => {
+        const round = createRound({ players, counts, deck }, () => seed);
+        return round.assignments.map((assignment) => assignment.role).join(",");
+      }),
+    );
+
+    // Role assignment is RNG-driven, so different seeds yield different layouts.
+    expect(arrangements.size).toBeGreaterThan(1);
+  });
+});
+
+describe("assignRoles", () => {
+  it("produces exactly one entry per player", () => {
+    const assignments = assignRoles(players, counts, fixedRng);
+
+    expect(assignments).toHaveLength(players.length);
+    expect(assignments.map((assignment) => assignment.player.id).sort()).toEqual(["1", "2", "3", "4", "5"]);
+  });
+
+  it("hands out exactly the requested number of each role", () => {
+    const assignments = assignRoles(players, counts, fixedRng);
+    const roleOf = (role: string) => assignments.filter((assignment) => assignment.role === role).length;
+
+    expect(roleOf("civilian")).toBe(3);
+    expect(roleOf("undercover")).toBe(1);
+    expect(roleOf("mrWhite")).toBe(1);
+  });
+
+  it("is deterministic for a fixed RNG seed", () => {
+    const first = assignRoles(players, counts, () => 0.5).map((assignment) => assignment.role);
+    const second = assignRoles(players, counts, () => 0.5).map((assignment) => assignment.role);
+
+    expect(first).toEqual(second);
+  });
+});
+
+describe("selectWordPair", () => {
+  const multiDeck: WordPair[] = [
+    { id: "a", category: "x", civilian: "Apple", undercover: "Pear" },
+    { id: "b", category: "y", civilian: "Dog", undercover: "Wolf" },
+    { id: "c", category: "z", civilian: "Sun", undercover: "Moon" },
+  ];
+
+  it("selects the pair addressed by the RNG", () => {
+    expect(selectWordPair(multiDeck, () => 0)).toBe(multiDeck[0]);
+    expect(selectWordPair(multiDeck, () => 0.5)).toBe(multiDeck[1]);
+    expect(selectWordPair(multiDeck, () => 0.99)).toBe(multiDeck[2]);
+  });
+
+  it("throws on an empty deck", () => {
+    expect(() => selectWordPair([], fixedRng)).toThrow("empty");
   });
 });
 
@@ -245,7 +332,16 @@ describe("isCorrectMrWhiteGuess", () => {
     expect(isCorrectMrWhiteGuess(" france ", "France")).toBe(true);
   });
 
+  it("matches regardless of which side carries the casing", () => {
+    expect(isCorrectMrWhiteGuess("FRANCE", "france")).toBe(true);
+  });
+
   it("rejects the wrong word", () => {
     expect(isCorrectMrWhiteGuess("Italy", "France")).toBe(false);
+  });
+
+  it("rejects an empty or whitespace-only guess against a real word", () => {
+    expect(isCorrectMrWhiteGuess("", "France")).toBe(false);
+    expect(isCorrectMrWhiteGuess("   ", "France")).toBe(false);
   });
 });

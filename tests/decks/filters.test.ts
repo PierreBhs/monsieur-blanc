@@ -1,3 +1,15 @@
+/**
+ * Test plan — src/decks/filters.ts (deck category/difficulty filtering)
+ *
+ * Functions under test:
+ *   - filterWordPairs:     filters a deck by category and derived difficulty
+ *   - deckCategoryOptions: builds sorted {value,label,count} category options
+ *   - wordPairDifficulty:  derives "easy"/"tricky" from word shape
+ *
+ * Scenarios: each filter axis alone, both combined, the "all"/"any" pass-through
+ * sentinels, no-match and empty-deck results, and every difficulty heuristic
+ * branch (multi-word, hyphenated, long, and short single words).
+ */
 import { describe, expect, it } from "vitest";
 import { allCategories, anyDifficulty, deckCategoryOptions, filterWordPairs, wordPairDifficulty } from "../../src/decks/filters";
 import type { WordPair } from "../../src/game/types";
@@ -16,6 +28,19 @@ describe("filterWordPairs", () => {
   it("filters by derived difficulty", () => {
     expect(filterWordPairs(deck, { category: allCategories, difficulty: "tricky" })).toEqual([deck[1]]);
   });
+
+  it("returns the whole deck for the all/any sentinels", () => {
+    expect(filterWordPairs(deck, { category: allCategories, difficulty: anyDifficulty })).toEqual(deck);
+  });
+
+  it("applies category and difficulty together", () => {
+    expect(filterWordPairs(deck, { category: "places", difficulty: "tricky" })).toEqual([deck[1]]);
+    expect(filterWordPairs(deck, { category: "countries", difficulty: "tricky" })).toEqual([]);
+  });
+
+  it("returns an empty list when nothing matches", () => {
+    expect(filterWordPairs(deck, { category: "nonexistent", difficulty: anyDifficulty })).toEqual([]);
+  });
 });
 
 describe("deckCategoryOptions", () => {
@@ -26,14 +51,40 @@ describe("deckCategoryOptions", () => {
       { value: "places", label: "places", count: 1 },
     ]);
   });
+
+  it("tallies multiple pairs that share a category", () => {
+    const grouped: WordPair[] = [
+      ...deck,
+      { id: "spain-portugal", category: "countries", civilian: "Spain", undercover: "Portugal" },
+    ];
+
+    expect(deckCategoryOptions(grouped)[0]).toEqual({ value: "countries", label: "countries", count: 2 });
+  });
+
+  it("returns no options for an empty deck", () => {
+    expect(deckCategoryOptions([])).toEqual([]);
+  });
 });
 
 describe("wordPairDifficulty", () => {
   it("treats short single-word pairs as easy", () => {
     expect(wordPairDifficulty(deck[0])).toBe("easy");
+    expect(wordPairDifficulty(deck[2])).toBe("easy");
   });
 
   it("treats multi-word pairs as tricky", () => {
     expect(wordPairDifficulty(deck[1])).toBe("tricky");
+  });
+
+  it("treats hyphenated words as tricky", () => {
+    expect(
+      wordPairDifficulty({ id: "x", category: "c", civilian: "Mother-in-law", undercover: "Cat" }),
+    ).toBe("tricky");
+  });
+
+  it("treats long single words (over 12 chars) as tricky", () => {
+    expect(
+      wordPairDifficulty({ id: "x", category: "c", civilian: "Constantinople", undercover: "Cat" }),
+    ).toBe("tricky");
   });
 });

@@ -1,3 +1,13 @@
+/**
+ * Test plan — src/pwa.ts (service worker registration)
+ *
+ * Functions under test:
+ *   - canUseServiceWorker:   feature-detects service worker support
+ *   - registerServiceWorker: registers /sw.js on window load when supported
+ *
+ * Scenarios: support present vs absent; the navigator + load listener are
+ * injected as fakes so no real service worker or window is needed.
+ */
 import { describe, expect, it, vi } from "vitest";
 import { canUseServiceWorker, registerServiceWorker } from "../../src/pwa";
 
