@@ -77,6 +77,17 @@ button {
   }
 }
 
+@keyframes marker-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
 .setup-layout,
 .round-layout {
   width: min(1080px, 100%);
@@ -217,25 +228,61 @@ h2 {
 
 .player-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+}
+
+.player-row-slot {
+  display: grid;
+  gap: 8px;
 }
 
 .player-row {
   display: grid;
-  grid-template-columns: 34px 44px minmax(0, 1fr) 40px;
+  grid-template-columns: 44px 44px minmax(0, 1fr) 40px;
   align-items: center;
   gap: 10px;
   animation: page-in 0.18s ease-out both;
+  transform-origin: center;
+  transition: opacity 0.12s ease-out, scale 0.12s ease-out, translate 0.12s ease-out;
 }
 
 .player-row.is-dragging {
-  opacity: 0.45;
+  opacity: 0.68;
+  scale: 0.99;
+  translate: 2px 0;
 }
 
-.player-row.is-drop-target {
-  border-radius: 8px;
-  outline: 3px dashed var(--danger);
-  outline-offset: 3px;
+.player-insert-marker {
+  position: relative;
+  height: 12px;
+  margin: -2px 0;
+  animation: marker-in 0.1s ease-out;
+}
+
+.player-insert-marker::before {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  left: 6px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  box-shadow: 3px 3px 0 var(--border);
+  content: "";
+  translate: 0 -50%;
+}
+
+.player-insert-marker::after {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--border);
+  border-radius: 50%;
+  background: var(--danger);
+  content: "";
+  translate: 0 -50%;
 }
 
 .player-row.is-leaving {
@@ -243,8 +290,10 @@ h2 {
 }
 
 .drag-handle {
-  width: 34px;
-  height: 40px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
   border: 3px solid var(--border);
   border-radius: 8px;
   color: var(--muted);
@@ -254,6 +303,18 @@ h2 {
   letter-spacing: 0;
   cursor: grab;
   box-shadow: 3px 3px 0 var(--border);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.drag-grip {
+  width: 18px;
+  height: 16px;
+  background:
+    linear-gradient(var(--muted), var(--muted)) 0 0 / 18px 3px no-repeat,
+    linear-gradient(var(--muted), var(--muted)) 0 6px / 18px 3px no-repeat,
+    linear-gradient(var(--muted), var(--muted)) 0 12px / 18px 3px no-repeat;
 }
 
 .drag-handle:hover {
@@ -261,7 +322,10 @@ h2 {
 }
 
 .drag-handle:active {
+  background: #ffef9a;
   cursor: grabbing;
+  translate: 2px 2px;
+  box-shadow: 1px 1px 0 var(--border);
 }
 
 .player-token,

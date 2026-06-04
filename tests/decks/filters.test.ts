@@ -11,7 +11,14 @@
  * branch (multi-word, hyphenated, long, and short single words).
  */
 import { describe, expect, it } from "vitest";
-import { allCategories, anyDifficulty, deckCategoryOptions, filterWordPairs, wordPairDifficulty } from "../../src/decks/filters";
+import {
+  allCategories,
+  anyDifficulty,
+  categoryGroupLabel,
+  deckCategoryOptions,
+  filterWordPairs,
+  wordPairDifficulty,
+} from "../../src/decks/filters";
 import type { WordPair } from "../../src/game/types";
 
 const deck: WordPair[] = [
@@ -23,6 +30,13 @@ const deck: WordPair[] = [
 describe("filterWordPairs", () => {
   it("filters by category", () => {
     expect(filterWordPairs(deck, { category: "countries", difficulty: anyDifficulty })).toEqual([deck[0]]);
+  });
+
+  it("filters by broad category group", () => {
+    expect(filterWordPairs(deck, { category: "Places & Travel", difficulty: anyDifficulty })).toEqual([
+      deck[0],
+      deck[1],
+    ]);
   });
 
   it("filters by derived difficulty", () => {
@@ -44,25 +58,35 @@ describe("filterWordPairs", () => {
 });
 
 describe("deckCategoryOptions", () => {
-  it("returns sorted categories with counts", () => {
+  it("returns sorted broad categories with counts", () => {
     expect(deckCategoryOptions(deck)).toEqual([
-      { value: "countries", label: "countries", count: 1 },
-      { value: "food", label: "food", count: 1 },
-      { value: "places", label: "places", count: 1 },
+      { value: "Food & Drink", label: "Food & Drink", count: 1 },
+      { value: "Places & Travel", label: "Places & Travel", count: 2 },
     ]);
   });
 
-  it("tallies multiple pairs that share a category", () => {
+  it("tallies multiple pairs that share a broad category", () => {
     const grouped: WordPair[] = [
       ...deck,
       { id: "spain-portugal", category: "countries", civilian: "Spain", undercover: "Portugal" },
     ];
 
-    expect(deckCategoryOptions(grouped)[0]).toEqual({ value: "countries", label: "countries", count: 2 });
+    expect(deckCategoryOptions(grouped)[1]).toEqual({ value: "Places & Travel", label: "Places & Travel", count: 3 });
   });
 
   it("returns no options for an empty deck", () => {
     expect(deckCategoryOptions([])).toEqual([]);
+  });
+});
+
+describe("categoryGroupLabel", () => {
+  it("maps fine-grained deck labels to broader groups", () => {
+    expect(categoryGroupLabel("sweets")).toBe("Food & Drink");
+    expect(categoryGroupLabel("security")).toBe("Mystery & Danger");
+  });
+
+  it("falls back to the objects group for unknown categories", () => {
+    expect(categoryGroupLabel("unknown")).toBe("Objects & Tech");
   });
 });
 
