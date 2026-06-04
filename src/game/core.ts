@@ -21,11 +21,19 @@ export function createRound(config: RoundConfig, rng: Rng = Math.random): Round 
 
   return {
     wordPair,
-    assignments: assignedRoles.map(({ player, role }) => ({
-      player,
-      role,
-      word: role === "mrWhite" ? undefined : wordForRole(role, wordPair),
-    })),
+    assignments: assignedRoles.map(({ player, role }) => createPlayerAssignment(player, role, wordPair)),
+  };
+}
+
+export function pickRandomRole(rng: Rng = Math.random): Role {
+  return roles[Math.floor(rng() * roles.length)];
+}
+
+export function createPlayerAssignment(player: PlayerInput, role: Role, wordPair: WordPair): PlayerAssignment {
+  return {
+    player,
+    role,
+    word: role === "mrWhite" ? undefined : wordForRole(role, wordPair),
   };
 }
 

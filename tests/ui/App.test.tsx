@@ -57,6 +57,7 @@ async function revealEveryPlayer(user: ReturnType<typeof userEvent.setup>, count
 }
 
 beforeEach(() => {
+  localStorage.clear();
   vi.spyOn(Math, "random").mockReturnValue(0);
 });
 
@@ -141,6 +142,50 @@ describe("App — round flow", () => {
     await user.click(screen.getByRole("button", { name: "Back to setup" }));
 
     expect(screen.getByRole("heading", { name: "Players" })).toBeInTheDocument();
+  });
+
+  it("adds a mid-round player with a random role and sends them to reveal", async () => {
+    const user = userEvent.setup();
+    seedNamedGame(fourPlayerGame, fourPlayerCounts);
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Start round" }));
+    await revealEveryPlayer(user, fourPlayerGame.length);
+
+    await user.click(screen.getByRole("button", { name: "Add player" }));
+    await user.type(screen.getByLabelText("New player name"), "Eve");
+    await user.click(screen.getByRole("button", { name: "Add and reveal" }));
+
+    expect(screen.getByRole("button", { name: "Reveal word" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Eve" })).toBeInTheDocument();
+    expect(screen.getByText("5/5")).toBeInTheDocument();
+  });
+
+  it("lets an eliminated undercover keep playing after a correct civilian-word guess", async () => {
+    const user = userEvent.setup();
+    seedNamedGame(fourPlayerGame, fourPlayerCounts);
+    const round = expectedRound(fourPlayerGame, fourPlayerCounts);
+    const undercoverName = round.assignments.find((assignment) => assignment.role === "undercover")!.player.name;
+
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Start round" }));
+    await revealEveryPlayer(user, fourPlayerGame.length);
+    await user.click(screen.getByRole("button", { name: "Vote after discussion" }));
+
+    const eliminateUndercover = screen
+      .getAllByRole("button")
+      .find((button) => button.textContent?.includes(undercoverName) && button.textContent?.includes("Select"));
+    await user.click(eliminateUndercover!);
+    await user.click(screen.getByRole("button", { name: `Vote out ${undercoverName}` }));
+
+    await user.type(screen.getByLabelText("Undercover word guess"), round.wordPair.civilian);
+    await user.click(screen.getByRole("button", { name: "Submit guess" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("+1 point");
+    expect(screen.getByText(/Correct civilian word/i)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /win/i })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("button", { name: "Vote after discussion" })).toBeInTheDocument();
   });
 
   it("lets Mr. White win the game with a correct final guess", async () => {

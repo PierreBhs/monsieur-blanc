@@ -33,10 +33,13 @@ const emptyWins: Record<GameWinner, number> = {
   mrWhite: 0,
 };
 
+export const undercoverCorrectGuessPoints = 1;
+
 export function createRoundHistoryEntry(
   assignments: PlayerAssignment[],
   status: Exclude<GameStatus, { state: "playing" }>,
   completedAt: string,
+  bonusScores: PlayerRoundScore[] = [],
 ): RoundHistoryEntry {
   return {
     id: `${completedAt}-${status.winner}`,
@@ -45,8 +48,24 @@ export function createRoundHistoryEntry(
     reason: status.reason,
     word: assignments.find((assignment) => assignment.role === "civilian")?.word ?? "",
     winners: winningPlayerNames(assignments, status.winner),
-    scores: winningScores(assignments, status.winner),
+    scores: mergeRoundScores(winningScores(assignments, status.winner), bonusScores),
   };
+}
+
+function mergeRoundScores(baseScores: PlayerRoundScore[], bonusScores: PlayerRoundScore[]): PlayerRoundScore[] {
+  const totals = new Map<string, number>();
+
+  for (const score of baseScores) {
+    totals.set(score.name, (totals.get(score.name) ?? 0) + score.points);
+  }
+
+  for (const score of bonusScores) {
+    totals.set(score.name, (totals.get(score.name) ?? 0) + score.points);
+  }
+
+  return Array.from(totals.entries())
+    .map(([name, points]) => ({ name, points }))
+    .filter((score) => score.points > 0);
 }
 
 export function appendRoundHistory(

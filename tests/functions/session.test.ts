@@ -55,6 +55,21 @@ describe("createRoundHistoryEntry", () => {
     expect(entry.scores).toEqual([{ name: "Dee", points: 6 }]);
   });
 
+  it("adds undercover bonus points to the round scores", () => {
+    const entry = createRoundHistoryEntry(
+      assignments,
+      { state: "won", winner: "civilians", reason: "All infiltrators are out." },
+      "2026-06-04T12:00:00.000Z",
+      [{ name: "Cam", points: 1 }],
+    );
+
+    expect(entry.scores).toEqual([
+      { name: "Ada", points: 2 },
+      { name: "Ben", points: 2 },
+      { name: "Cam", points: 1 },
+    ]);
+  });
+
   it("awards undercover and Mr. White points for an infiltrator win", () => {
     const entry = createRoundHistoryEntry(
       assignments,

@@ -9,7 +9,8 @@
  *   - reveal:            shows the reveal button, then the word + continue.
  *   - turn:              shows the clue prompt and starts the vote.
  *   - vote:              one elimination choice per active player.
- *   - mrWhiteGuess:      guess input wired to submit/skip.
+ *   - mrWhiteGuess:        guess input wired to submit/skip.
+ *   - undercoverGuess:     guess input wired to submit/skip.
  *   - eliminationReveal: announces who is out and continues.
  *   - gameOver:          shows the winner and reason.
  */
@@ -47,9 +48,13 @@ function makeProps(overrides: Partial<ComponentProps<typeof RoundScreen>> = {}) 
     timerSeconds: 120,
     remainingSeconds: 120,
     lastElimination: "",
+    undercoverBonusPoints: 0,
     selectedElimination: null,
     pendingElimination: null,
     mrWhiteGuess: "",
+    undercoverGuess: "",
+    addPlayerName: "",
+    roundError: "",
     gameStatus: { state: "playing" },
     roundHistory: [],
     sessionStats: { roundsPlayed: 0, wins: { civilians: 0, infiltrators: 0, mrWhite: 0 }, players: [] },
@@ -63,6 +68,13 @@ function makeProps(overrides: Partial<ComponentProps<typeof RoundScreen>> = {}) 
     onMrWhiteGuessChange: vi.fn(),
     onSubmitMrWhiteGuess: vi.fn(),
     onSkipMrWhiteGuess: vi.fn(),
+    onUndercoverGuessChange: vi.fn(),
+    onSubmitUndercoverGuess: vi.fn(),
+    onSkipUndercoverGuess: vi.fn(),
+    onOpenAddPlayer: vi.fn(),
+    onCancelAddPlayer: vi.fn(),
+    onAddPlayerNameChange: vi.fn(),
+    onConfirmAddPlayer: vi.fn(),
     onContinueAfterElimination: vi.fn(),
     onTimerPause: vi.fn(),
     onTimerReset: vi.fn(),
@@ -162,6 +174,81 @@ describe("RoundScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Skip guess" }));
     expect(onSkipMrWhiteGuess).toHaveBeenCalledWith(assignments[2]);
+  });
+
+  it("addPlayer phase wires name and confirm actions", async () => {
+    const user = userEvent.setup();
+    const onAddPlayerNameChange = vi.fn();
+    const onConfirmAddPlayer = vi.fn();
+    const onCancelAddPlayer = vi.fn();
+    render(
+      <RoundScreen
+        {...makeProps({
+          phase: "addPlayer",
+          onAddPlayerNameChange,
+          onConfirmAddPlayer,
+          onCancelAddPlayer,
+        })}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("New player name"), "Eve");
+    expect(onAddPlayerNameChange).toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Add and reveal" }));
+    expect(onConfirmAddPlayer).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancelAddPlayer).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the add-player control while the round is still playing", () => {
+    const onOpenAddPlayer = vi.fn();
+    render(<RoundScreen {...makeProps({ phase: "turn", onOpenAddPlayer })} />);
+
+    expect(screen.getByRole("button", { name: "Add player" })).toBeInTheDocument();
+  });
+
+  it("undercoverGuess phase wires the guess input to submit and skip", async () => {
+    const user = userEvent.setup();
+    const onUndercoverGuessChange = vi.fn();
+    const onSubmitUndercoverGuess = vi.fn();
+    const onSkipUndercoverGuess = vi.fn();
+    render(
+      <RoundScreen
+        {...makeProps({
+          phase: "undercoverGuess",
+          pendingElimination: assignments[1],
+          onUndercoverGuessChange,
+          onSubmitUndercoverGuess,
+          onSkipUndercoverGuess,
+        })}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Undercover word guess"), "x");
+    expect(onUndercoverGuessChange).toHaveBeenCalledWith("x");
+
+    await user.click(screen.getByRole("button", { name: "Submit guess" }));
+    expect(onSubmitUndercoverGuess).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "Skip guess" }));
+    expect(onSkipUndercoverGuess).toHaveBeenCalledWith(assignments[1]);
+  });
+
+  it("eliminationReveal phase highlights an undercover bonus point", () => {
+    render(
+      <RoundScreen
+        {...makeProps({
+          phase: "eliminationReveal",
+          pendingElimination: assignments[1],
+          undercoverBonusPoints: 1,
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("+1 point");
+    expect(screen.getByText("Bonus earned")).toBeInTheDocument();
   });
 
   it("eliminationReveal phase announces who is out and continues", async () => {

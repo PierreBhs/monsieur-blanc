@@ -13,15 +13,19 @@ import {
 import { wordPairs } from "./decks/wordPairs";
 import {
   chooseRandomActiveAssignment,
+  createPlayerAssignment,
   createRound,
   evaluateGameStatus,
   isCorrectMrWhiteGuess,
+  pickRandomRole,
 } from "./game/core";
 import type { PlayPhase } from "./game/playPhase";
 import {
   appendRoundHistory,
   calculateSessionStats,
   createRoundHistoryEntry,
+  undercoverCorrectGuessPoints,
+  type PlayerRoundScore,
   type RoundHistoryEntry,
 } from "./game/session";
 import type { GameStatus, PlayerAssignment, PlayerInput, RoleCounts, Round } from "./game/types";
@@ -72,9 +76,14 @@ function App() {
   const [selectedElimination, setSelectedElimination] = useState<PlayerAssignment | null>(null);
   const [pendingElimination, setPendingElimination] = useState<PlayerAssignment | null>(null);
   const [mrWhiteGuess, setMrWhiteGuess] = useState("");
+  const [undercoverGuess, setUndercoverGuess] = useState("");
+  const [roundBonusScores, setRoundBonusScores] = useState<PlayerRoundScore[]>([]);
   const [gameStatus, setGameStatus] = useState<GameStatus>({ state: "playing" });
   const [roundHistory, setRoundHistory] = useState<RoundHistoryEntry[]>(loadRoundHistory);
   const [lastElimination, setLastElimination] = useState("");
+  const [lastUndercoverBonusPoints, setLastUndercoverBonusPoints] = useState(0);
+  const [resumePhase, setResumePhase] = useState<PlayPhase>("turn");
+  const [addPlayerName, setAddPlayerName] = useState("");
   const [error, setError] = useState("");
   const [leavingId, setLeavingId] = useState<string | null>(null);
   const [draggingPlayerId, setDraggingPlayerId] = useState<string | null>(null);
@@ -309,8 +318,11 @@ function App() {
       setSelectedElimination(null);
       setPendingElimination(null);
       setMrWhiteGuess("");
+      setUndercoverGuess("");
+      setRoundBonusScores([]);
       setGameStatus({ state: "playing" });
       setLastElimination("");
+      setLastUndercoverBonusPoints(0);
     } catch (roundError) {
       setError(roundError instanceof Error ? roundError.message : "Could not start the round.");
     }
@@ -344,6 +356,71 @@ function App() {
     setPhase("vote");
   }
 
+  function clearPendingRoundActions() {
+    setSelectedElimination(null);
+    setPendingElimination(null);
+    setMrWhiteGuess("");
+    setUndercoverGuess("");
+    setLastUndercoverBonusPoints(0);
+    setTimerRunning(false);
+  }
+
+  function openAddPlayer() {
+    if (!round || phase === "gameOver") {
+      return;
+    }
+
+    setResumePhase(phase);
+    setAddPlayerName("");
+    setError("");
+    clearPendingRoundActions();
+    setPhase("addPlayer");
+  }
+
+  function cancelAddPlayer() {
+    setAddPlayerName("");
+    setError("");
+    setPhase(resumePhase);
+  }
+
+  function confirmAddPlayer() {
+    if (!round) {
+      return;
+    }
+
+    const trimmedName = addPlayerName.trim();
+    if (trimmedName.length === 0) {
+      setError("Every player needs a name.");
+      return;
+    }
+
+    const normalizedName = trimmedName.toLocaleLowerCase();
+    const nameTaken = [...players, ...round.assignments.map((assignment) => assignment.player)].some(
+      (player) => player.name.trim().toLocaleLowerCase() === normalizedName,
+    );
+
+    if (nameTaken) {
+      setError("Every player needs a unique name.");
+      return;
+    }
+
+    const newPlayer: PlayerInput = { id: crypto.randomUUID(), name: trimmedName };
+    const role = pickRandomRole();
+    const newAssignment = createPlayerAssignment(newPlayer, role, round.wordPair);
+    const nextAssignments = [...round.assignments, newAssignment];
+
+    updatePlayers([...players, newPlayer]);
+    updateCounts({ ...counts, [role]: counts[role] + 1 });
+    setRound({ ...round, assignments: nextAssignments });
+    setActiveIndex(nextAssignments.length - 1);
+    setIsRevealed(false);
+    setGameStatus(evaluateGameStatus(nextAssignments, eliminatedIds));
+    setAddPlayerName("");
+    setError("");
+    clearPendingRoundActions();
+    setPhase("reveal");
+  }
+
   function selectElimination(assignment: PlayerAssignment) {
     setLastElimination("");
     setSelectedElimination(assignment);
@@ -360,6 +437,13 @@ function App() {
       setPendingElimination(selectedElimination);
       setMrWhiteGuess("");
       setPhase("mrWhiteGuess");
+      return;
+    }
+
+    if (selectedElimination.role === "undercover") {
+      setPendingElimination(selectedElimination);
+      setUndercoverGuess("");
+      setPhase("undercoverGuess");
       return;
     }
 
@@ -386,7 +470,22 @@ function App() {
     finishElimination(pendingElimination);
   }
 
-  function finishElimination(assignment: PlayerAssignment) {
+  function submitUndercoverGuess() {
+    if (!round || !pendingElimination) {
+      return;
+    }
+
+    const earnedBonus = isCorrectMrWhiteGuess(undercoverGuess, round.wordPair.civilian);
+    if (earnedBonus) {
+      setRoundBonusScores((previous) =>
+        mergeBonusScore(previous, pendingElimination.player.name, undercoverCorrectGuessPoints),
+      );
+    }
+
+    finishElimination(pendingElimination, earnedBonus);
+  }
+
+  function finishElimination(assignment: PlayerAssignment, earnedUndercoverBonus = false) {
     if (!round) {
       return;
     }
@@ -399,7 +498,9 @@ function App() {
     setSelectedElimination(null);
     setPendingElimination(assignment);
     setMrWhiteGuess("");
+    setUndercoverGuess("");
     setGameStatus(nextStatus);
+    setLastUndercoverBonusPoints(earnedUndercoverBonus ? undercoverCorrectGuessPoints : 0);
     setLastElimination(`${assignment.player.name} is out.`);
     if (nextStatus.state === "won") {
       recordRoundResult(round.assignments, nextStatus);
@@ -412,7 +513,7 @@ function App() {
       return;
     }
 
-    const entry = createRoundHistoryEntry(assignments, status, new Date().toISOString());
+    const entry = createRoundHistoryEntry(assignments, status, new Date().toISOString(), roundBonusScores);
     updateRoundHistory(appendRoundHistory(roundHistory, entry));
   }
 
@@ -426,6 +527,7 @@ function App() {
     }
 
     setPendingElimination(null);
+    setLastUndercoverBonusPoints(0);
 
     if (gameStatus.state === "won") {
       setPhase("gameOver");
@@ -447,8 +549,11 @@ function App() {
     setSelectedElimination(null);
     setPendingElimination(null);
     setMrWhiteGuess("");
+    setUndercoverGuess("");
+    setRoundBonusScores([]);
     setGameStatus({ state: "playing" });
     setLastElimination("");
+    setLastUndercoverBonusPoints(0);
     setError("");
     setLeavingId(null);
     setDraggingPlayerId(null);
@@ -472,9 +577,11 @@ function App() {
         timerSeconds={timerSeconds}
         remainingSeconds={remainingSeconds}
         lastElimination={lastElimination}
+        undercoverBonusPoints={lastUndercoverBonusPoints}
         selectedElimination={selectedElimination}
         pendingElimination={pendingElimination}
         mrWhiteGuess={mrWhiteGuess}
+        undercoverGuess={undercoverGuess}
         gameStatus={gameStatus}
         roundHistory={roundHistory}
         sessionStats={sessionStats}
@@ -488,7 +595,16 @@ function App() {
         onMrWhiteGuessChange={setMrWhiteGuess}
         onSubmitMrWhiteGuess={submitMrWhiteGuess}
         onSkipMrWhiteGuess={finishElimination}
+        onUndercoverGuessChange={setUndercoverGuess}
+        onSubmitUndercoverGuess={submitUndercoverGuess}
+        onSkipUndercoverGuess={finishElimination}
         onContinueAfterElimination={continueAfterElimination}
+        addPlayerName={addPlayerName}
+        roundError={error}
+        onOpenAddPlayer={openAddPlayer}
+        onCancelAddPlayer={cancelAddPlayer}
+        onAddPlayerNameChange={setAddPlayerName}
+        onConfirmAddPlayer={confirmAddPlayer}
         onTimerPause={() => setTimerRunning(false)}
         onTimerReset={() => {
           setRemainingSeconds(timerSeconds);
@@ -689,6 +805,18 @@ function trimCountsToPlayers(counts: RoleCounts, playerCount: number): RoleCount
   }
 
   return nextCounts;
+}
+
+function mergeBonusScore(scores: PlayerRoundScore[], name: string, points: number): PlayerRoundScore[] {
+  const existing = scores.find((score) => score.name === name);
+
+  if (existing) {
+    return scores.map((score) =>
+      score.name === name ? { ...score, points: score.points + points } : score,
+    );
+  }
+
+  return [...scores, { name, points }];
 }
 
 function clamp(value: number, min: number, max: number): number {
