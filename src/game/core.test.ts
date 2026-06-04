@@ -99,7 +99,7 @@ describe("evaluateGameStatus", () => {
     });
   });
 
-  it("keeps playing when 1 civilian and 1 undercover remain", () => {
+  it("lets infiltrators win when a round that started with multiple civilians has only 1 civilian left", () => {
     const round = createRound({ players, counts, deck }, fixedRng);
     const eliminatedIds = new Set(
       round.assignments
@@ -109,7 +109,33 @@ describe("evaluateGameStatus", () => {
     );
 
     expect(evaluateGameStatus(round.assignments, eliminatedIds)).toMatchObject({
+      state: "won",
+      winner: "infiltrators",
+    });
+  });
+
+  it("keeps playing in the 3-player civilian undercover Mr. White setup", () => {
+    const round = createRound({
+      players: players.slice(0, 3),
+      counts: { civilian: 1, undercover: 1, mrWhite: 1 },
+      deck,
+    }, fixedRng);
+
+    expect(evaluateGameStatus(round.assignments, new Set())).toMatchObject({
       state: "playing",
+    });
+  });
+
+  it("lets infiltrators win with 1 civilian in larger rounds", () => {
+    const round = createRound({
+      players: players.slice(0, 4),
+      counts: { civilian: 1, undercover: 2, mrWhite: 1 },
+      deck,
+    }, fixedRng);
+
+    expect(evaluateGameStatus(round.assignments, new Set())).toMatchObject({
+      state: "won",
+      winner: "infiltrators",
     });
   });
 

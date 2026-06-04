@@ -86,9 +86,14 @@ export function validateConfig(config: RoundConfig): void {
 
 export function evaluateGameStatus(assignments: PlayerAssignment[], eliminatedIds: Set<string>): GameStatus {
   const activeAssignments = assignments.filter((assignment) => !eliminatedIds.has(assignment.player.id));
+  const startingCivilians = assignments.filter((assignment) => assignment.role === "civilian").length;
+  const startingUndercovers = assignments.filter((assignment) => assignment.role === "undercover").length;
+  const startingMrWhites = assignments.filter((assignment) => assignment.role === "mrWhite").length;
   const activeCivilians = activeAssignments.filter((assignment) => assignment.role === "civilian").length;
   const activeUndercovers = activeAssignments.filter((assignment) => assignment.role === "undercover").length;
   const activeMrWhites = activeAssignments.filter((assignment) => assignment.role === "mrWhite").length;
+  const isThreePlayerMixedRound =
+    assignments.length === 3 && startingCivilians === 1 && startingUndercovers === 1 && startingMrWhites === 1;
 
   if (activeUndercovers === 0 && activeMrWhites > 0) {
     return {
@@ -111,6 +116,14 @@ export function evaluateGameStatus(assignments: PlayerAssignment[], eliminatedId
       state: "won",
       winner: "infiltrators",
       reason: "No civilians remain.",
+    };
+  }
+
+  if (!isThreePlayerMixedRound && activeCivilians === 1) {
+    return {
+      state: "won",
+      winner: "infiltrators",
+      reason: "Only 1 civilian remains.",
     };
   }
 
