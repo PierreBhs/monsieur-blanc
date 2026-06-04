@@ -86,12 +86,24 @@ export function validateConfig(config: RoundConfig): void {
 
 export function evaluateGameStatus(assignments: PlayerAssignment[], eliminatedIds: Set<string>): GameStatus {
   const activeAssignments = assignments.filter((assignment) => !eliminatedIds.has(assignment.player.id));
+  const startingCivilians = assignments.filter((assignment) => assignment.role === "civilian").length;
+  const startingUndercovers = assignments.filter((assignment) => assignment.role === "undercover").length;
+  const startingMrWhites = assignments.filter((assignment) => assignment.role === "mrWhite").length;
   const activeCivilians = activeAssignments.filter((assignment) => assignment.role === "civilian").length;
   const activeUndercovers = activeAssignments.filter((assignment) => assignment.role === "undercover").length;
   const activeMrWhites = activeAssignments.filter((assignment) => assignment.role === "mrWhite").length;
-  const activeInfiltrators = activeUndercovers + activeMrWhites;
+  const isThreePlayerMixedRound =
+    assignments.length === 3 && startingCivilians === 1 && startingUndercovers === 1 && startingMrWhites === 1;
 
-  if (activeInfiltrators === 0) {
+  if (activeUndercovers === 0 && activeMrWhites > 0) {
+    return {
+      state: "won",
+      winner: "mrWhite",
+      reason: "All undercovers are out and Mr. White remains.",
+    };
+  }
+
+  if (activeUndercovers === 0) {
     return {
       state: "won",
       winner: "civilians",
@@ -99,11 +111,19 @@ export function evaluateGameStatus(assignments: PlayerAssignment[], eliminatedId
     };
   }
 
-  if (activeCivilians <= 1) {
+  if (activeCivilians === 0) {
     return {
       state: "won",
       winner: "infiltrators",
-      reason: activeCivilians === 1 ? "Only 1 civilian remains." : "No civilians remain.",
+      reason: "No civilians remain.",
+    };
+  }
+
+  if (!isThreePlayerMixedRound && activeCivilians === 1) {
+    return {
+      state: "won",
+      winner: "infiltrators",
+      reason: "Only 1 civilian remains.",
     };
   }
 

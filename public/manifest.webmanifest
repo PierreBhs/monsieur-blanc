@@ -1,0 +1,24 @@
+{
+  "name": "M.Blanc",
+  "short_name": "M.Blanc",
+  "description": "Offline pass-the-device Mr. White game.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffe66d",
+  "theme_color": "#00c2a8",
+  "icons": [
+    {
+      "src": "/mr-white-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/mr-white-role.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,5 +1,14 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
-import { WordHelp } from "./WordHelp";
+import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
+import { RoundScreen } from "./components/RoundScreen";
+import { SetupScreen } from "./components/SetupScreen";
+import { roleTotal } from "./components/gameUi";
+import {
+  allCategories,
+  anyDifficulty,
+  deckCategoryOptions,
+  filterWordPairs,
+  type DifficultyFilter,
+} from "./decks/filters";
 import { wordPairs } from "./decks/wordPairs";
 import {
   chooseRandomActiveAssignment,
@@ -7,6 +16,13 @@ import {
   evaluateGameStatus,
   isCorrectMrWhiteGuess,
 } from "./game/core";
+import type { PlayPhase } from "./game/playPhase";
+import {
+  appendRoundHistory,
+  calculateSessionStats,
+  createRoundHistoryEntry,
+  type RoundHistoryEntry,
+} from "./game/session";
 import type { GameStatus, PlayerAssignment, PlayerInput, RoleCounts, Round } from "./game/types";
 
 const savedPlayersKey = "mr-white.players";
@@ -14,6 +30,9 @@ const savedCountsKey = "mr-white.counts";
 const savedShowRolesKey = "mr-white.show-roles";
 const savedTimerEnabledKey = "mr-white.timer-enabled";
 const savedTimerSecondsKey = "mr-white.timer-seconds";
+const savedRoundHistoryKey = "mr-white.round-history";
+const savedDeckCategoryKey = "mr-white.deck-category";
+const savedDeckDifficultyKey = "mr-white.deck-difficulty";
 const defaultTimerSeconds = 120;
 const minTimerSeconds = 30;
 const maxTimerSeconds = 600;
@@ -33,14 +52,14 @@ const defaultCounts: RoleCounts = {
   mrWhite: 1,
 };
 
-type PlayPhase = "reveal" | "turn" | "vote" | "mrWhiteGuess" | "eliminationReveal" | "gameOver";
-
 function App() {
   const [players, setPlayers] = useState<PlayerInput[]>(loadPlayers);
   const [counts, setCounts] = useState<RoleCounts>(loadCounts);
   const [showRoles, setShowRoles] = useState(loadShowRoles);
   const [timerEnabled, setTimerEnabled] = useState(loadTimerEnabled);
   const [timerSeconds, setTimerSeconds] = useState(loadTimerSeconds);
+  const [deckCategory, setDeckCategory] = useState(loadDeckCategory);
+  const [deckDifficulty, setDeckDifficulty] = useState<DifficultyFilter>(loadDeckDifficulty);
   const [round, setRound] = useState<Round | null>(null);
   const [phase, setPhase] = useState<PlayPhase>("reveal");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -52,21 +71,29 @@ function App() {
   const [pendingElimination, setPendingElimination] = useState<PlayerAssignment | null>(null);
   const [mrWhiteGuess, setMrWhiteGuess] = useState("");
   const [gameStatus, setGameStatus] = useState<GameStatus>({ state: "playing" });
+  const [roundHistory, setRoundHistory] = useState<RoundHistoryEntry[]>(loadRoundHistory);
   const [lastElimination, setLastElimination] = useState("");
   const [error, setError] = useState("");
   const [leavingId, setLeavingId] = useState<string | null>(null);
   const [draggingPlayerId, setDraggingPlayerId] = useState<string | null>(null);
   const [dropTargetPlayerId, setDropTargetPlayerId] = useState<string | null>(null);
 
-  const totalRoles = counts.civilian + counts.undercover + counts.mrWhite;
+  const totalRoles = roleTotal(counts);
   const activeAssignment = round?.assignments[activeIndex];
   const roleMismatch = totalRoles !== players.length;
   const activeAssignments = round?.assignments.filter((assignment) => !eliminatedIds.has(assignment.player.id)) ?? [];
+  const categoryOptions = useMemo(() => deckCategoryOptions(wordPairs), []);
+  const filteredWordPairs = useMemo(
+    () => filterWordPairs(wordPairs, { category: deckCategory, difficulty: deckDifficulty }),
+    [deckCategory, deckDifficulty],
+  );
+  const deckEmpty = filteredWordPairs.length === 0;
 
   const deckStats = useMemo(() => {
-    const categories = new Set(wordPairs.map((pair) => pair.category));
-    return `${wordPairs.length} pairs across ${categories.size} categories`;
-  }, []);
+    const categories = new Set(filteredWordPairs.map((pair) => pair.category));
+    return `${filteredWordPairs.length} pairs across ${categories.size} categories`;
+  }, [filteredWordPairs]);
+  const sessionStats = useMemo(() => calculateSessionStats(roundHistory, players), [roundHistory, players]);
 
   useEffect(() => {
     if (phase !== "turn" || !timerEnabled || !timerRunning || remainingSeconds <= 0) {
@@ -110,6 +137,22 @@ function App() {
     setTimerSeconds(nextTimerSeconds);
     setRemainingSeconds(nextTimerSeconds);
     localStorage.setItem(savedTimerSecondsKey, JSON.stringify(nextTimerSeconds));
+  }
+
+  function updateRoundHistory(nextRoundHistory: RoundHistoryEntry[]) {
+    setRoundHistory(nextRoundHistory);
+    localStorage.setItem(savedRoundHistoryKey, JSON.stringify(nextRoundHistory));
+  }
+
+  function updateDeckCategory(nextDeckCategory: string) {
+    setDeckCategory(nextDeckCategory);
+    localStorage.setItem(savedDeckCategoryKey, JSON.stringify(nextDeckCategory));
+  }
+
+  function updateDeckDifficulty(nextDeckDifficulty: string) {
+    const normalizedDifficulty = normalizeDeckDifficulty(nextDeckDifficulty);
+    setDeckDifficulty(normalizedDifficulty);
+    localStorage.setItem(savedDeckDifficultyKey, JSON.stringify(normalizedDifficulty));
   }
 
   function updatePlayerName(id: string, name: string) {
@@ -227,7 +270,7 @@ function App() {
       const nextRound = createRound({
         players: players.map((player) => ({ ...player, name: player.name.trim() })),
         counts,
-        deck: wordPairs,
+        deck: filteredWordPairs,
       });
 
       setRound(nextRound);
@@ -293,11 +336,13 @@ function App() {
     }
 
     if (isCorrectMrWhiteGuess(mrWhiteGuess, round.wordPair.civilian)) {
-      setGameStatus({
+      const nextStatus: GameStatus = {
         state: "won",
         winner: "mrWhite",
         reason: `${pendingElimination.player.name} guessed "${round.wordPair.civilian}".`,
-      });
+      };
+      recordRoundResult(round.assignments, nextStatus);
+      setGameStatus(nextStatus);
       setPhase("gameOver");
       return;
     }
@@ -319,7 +364,23 @@ function App() {
     setMrWhiteGuess("");
     setGameStatus(nextStatus);
     setLastElimination(`${assignment.player.name} is out.`);
+    if (nextStatus.state === "won") {
+      recordRoundResult(round.assignments, nextStatus);
+    }
     setPhase("eliminationReveal");
+  }
+
+  function recordRoundResult(assignments: PlayerAssignment[], status: GameStatus) {
+    if (status.state !== "won") {
+      return;
+    }
+
+    const entry = createRoundHistoryEntry(assignments, status, new Date().toISOString());
+    updateRoundHistory(appendRoundHistory(roundHistory, entry));
+  }
+
+  function clearRoundHistory() {
+    updateRoundHistory([]);
   }
 
   function continueAfterElimination() {
@@ -355,532 +416,85 @@ function App() {
 
   if (round) {
     return (
-      <main key="round" className="app-shell">
-        <section className="round-layout">
-          <div className="top-bar">
-            <button className="secondary-button" type="button" onClick={resetRound}>
-              Back to setup
-            </button>
-            <span>{activeAssignments.length} active</span>
-          </div>
-
-          <PlayerStrip assignments={round.assignments} eliminatedIds={eliminatedIds} turnStarterId={turnStarter?.player.id} />
-
-          {phase === "reveal" && activeAssignment && (
-            <div
-              className={`round-card reveal-card${
-                isRevealed && activeAssignment.role === "mrWhite" ? " is-mrwhite" : ""
-              }`}
-            >
-              <div className="phase-band">
-                <span>Private reveal</span>
-                <strong>
-                  {activeIndex + 1}/{round.assignments.length}
-                </strong>
-              </div>
-              <PlayerSpotlight assignment={activeAssignment} />
-
-              {!isRevealed ? (
-                <>
-                  <p className="muted-text">Only this player should look at the screen.</p>
-                  <button className="primary-button" type="button" onClick={() => setIsRevealed(true)}>
-                    Reveal word
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className={`secret-box${activeAssignment.role === "mrWhite" ? " is-mr-white" : ""}`}>
-                    {activeAssignment.word && <WordHelp word={activeAssignment.word} />}
-                    {activeAssignment.role === "mrWhite" && (
-                      <img className="mr-white-role-art" src="/mr-white-role.png" alt="" />
-                    )}
-                    {showRoles && activeAssignment.role !== "mrWhite" && (
-                      <div className="role-name">{roleLabel(activeAssignment.role)}</div>
-                    )}
-                    <FitText className="secret-word" text={activeAssignment.word ?? roleLabel(activeAssignment.role)} />
-                  </div>
-                  <button className="primary-button" type="button" onClick={goToNextPlayer}>
-                    Hide and continue
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
-          {phase === "turn" && turnStarter && (
-            <div className="round-card turn-card">
-              <div className="phase-band">
-                <span>New turn</span>
-                <strong>{activeAssignments.length} active</strong>
-              </div>
-              <div className="starter-layout">
-                <PlayerSpotlight assignment={turnStarter} />
-                <p className="muted-text">
-                  Starts this turn. They give one clue word, then continue around the table.
-                </p>
-              </div>
-
-              {timerEnabled && (
-                <DiscussionTimer
-                  remainingSeconds={remainingSeconds}
-                  timerRunning={timerRunning}
-                  timerSeconds={timerSeconds}
-                  onPause={() => setTimerRunning(false)}
-                  onReset={() => {
-                    setRemainingSeconds(timerSeconds);
-                    setTimerRunning(true);
-                  }}
-                  onStart={() => setTimerRunning(true)}
-                />
-              )}
-
-              {lastElimination && <p className="status-line">{lastElimination}</p>}
-
-              <button className="primary-button" type="button" onClick={startVote}>
-                Vote after discussion
-              </button>
-            </div>
-          )}
-
-          {phase === "vote" && (
-            <div className="round-card vote-card">
-              <div className="phase-band">
-                <span>Elimination vote</span>
-                <strong>{activeAssignments.length} choices</strong>
-              </div>
-              <div className="phase-copy">
-                <p className="muted-text">Choose one active player to eliminate from this turn.</p>
-              </div>
-
-              <div className="vote-list">
-                {activeAssignments.map((assignment) => (
-                  <button
-                    className="vote-row"
-                    key={assignment.player.id}
-                    type="button"
-                    onClick={() => selectElimination(assignment)}
-                  >
-                    <PlayerAvatar className="player-token" player={assignment.player} />
-                    <span>{assignment.player.name}</span>
-                    <span>Eliminate</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {phase === "mrWhiteGuess" && pendingElimination && (
-            <div className="round-card guess-card">
-              <div className="phase-band danger-band">
-                <span>Final guess</span>
-                <strong>Mr. White</strong>
-              </div>
-              <div className="starter-layout">
-                <PlayerSpotlight assignment={pendingElimination} />
-                <p className="muted-text">Mr. White was voted out and gets one guess at the civilian word.</p>
-              </div>
-
-              <input
-                aria-label="Mr. White word guess"
-                autoFocus
-                value={mrWhiteGuess}
-                onChange={(event) => setMrWhiteGuess(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    submitMrWhiteGuess();
-                  }
-                }}
-              />
-
-              <div className="button-row">
-                <button className="secondary-button" type="button" onClick={() => finishElimination(pendingElimination)}>
-                  Skip guess
-                </button>
-                <button className="primary-button" type="button" onClick={submitMrWhiteGuess}>
-                  Submit guess
-                </button>
-              </div>
-            </div>
-          )}
-
-          {phase === "eliminationReveal" && pendingElimination && (
-            <div className="round-card elimination-card">
-              <div className="phase-band danger-band">
-                <span>Eliminated</span>
-                <strong>{roleLabel(pendingElimination.role)}</strong>
-              </div>
-              <PlayerSpotlight assignment={pendingElimination} />
-              <div className="elimination-role">
-                <span>{pendingElimination.player.name} is eliminated</span>
-                <strong>{roleLabel(pendingElimination.role)}</strong>
-              </div>
-              <button className="primary-button" type="button" onClick={continueAfterElimination}>
-                Continue
-              </button>
-            </div>
-          )}
-
-          {phase === "gameOver" && gameStatus.state === "won" && (
-            <div className="round-card end-card">
-              <div className="phase-band">
-                <span>Game over</span>
-                <strong>{winnerLabel(gameStatus.winner)}</strong>
-              </div>
-              <div>
-                <h1>{winnerLabel(gameStatus.winner)} win</h1>
-                <p className="muted-text">{gameStatus.reason}</p>
-              </div>
-
-              <div className="summary-list">
-                {round.assignments.map((assignment) => (
-                  <div className="summary-row" key={assignment.player.id}>
-                    <span>{assignment.player.name}</span>
-                    <span>{roleLabel(assignment.role)}</span>
-                    <span>{assignment.word ?? "No word"}</span>
-                  </div>
-                ))}
-              </div>
-
-              <button className="primary-button" type="button" onClick={resetRound}>
-                New round
-              </button>
-            </div>
-          )}
-        </section>
-      </main>
+      <RoundScreen
+        round={round}
+        phase={phase}
+        activeAssignment={activeAssignment}
+        activeIndex={activeIndex}
+        activeAssignments={activeAssignments}
+        eliminatedIds={eliminatedIds}
+        turnStarter={turnStarter}
+        isRevealed={isRevealed}
+        showRoles={showRoles}
+        timerEnabled={timerEnabled}
+        timerRunning={timerRunning}
+        timerSeconds={timerSeconds}
+        remainingSeconds={remainingSeconds}
+        lastElimination={lastElimination}
+        pendingElimination={pendingElimination}
+        mrWhiteGuess={mrWhiteGuess}
+        gameStatus={gameStatus}
+        roundHistory={roundHistory}
+        sessionStats={sessionStats}
+        onBackToSetup={resetRound}
+        onContinuePlaying={startRound}
+        onReveal={() => setIsRevealed(true)}
+        onNextPlayer={goToNextPlayer}
+        onStartVote={startVote}
+        onSelectElimination={selectElimination}
+        onMrWhiteGuessChange={setMrWhiteGuess}
+        onSubmitMrWhiteGuess={submitMrWhiteGuess}
+        onSkipMrWhiteGuess={finishElimination}
+        onContinueAfterElimination={continueAfterElimination}
+        onTimerPause={() => setTimerRunning(false)}
+        onTimerReset={() => {
+          setRemainingSeconds(timerSeconds);
+          setTimerRunning(true);
+        }}
+        onTimerStart={() => setTimerRunning(true)}
+      />
     );
   }
 
   return (
-    <main key="setup" className="app-shell">
-      <section className="setup-layout">
-        <div className="setup-header">
-          <div className="brand-lockup">
-            <img src="/mr-white-mark.svg" alt="" />
-            <div>
-              <h1>M.Blanc</h1>
-              <p>{deckStats}</p>
-            </div>
-          </div>
-          <div className="deck-card">
-            <span>Tonight's deck</span>
-            <strong>{wordPairs.length}</strong>
-          </div>
-        </div>
-
-        <div className="setup-grid">
-          <section className="panel player-panel">
-            <div className="panel-heading">
-              <h2>Players</h2>
-              <button className="icon-button add-player-button" type="button" title="Add player" onClick={addPlayer}>
-                +
-              </button>
-            </div>
-
-            <div className="player-list">
-              {players.map((player, index) => (
-                <div
-                  className={`player-row${leavingId === player.id ? " is-leaving" : ""}${
-                    draggingPlayerId === player.id ? " is-dragging" : ""
-                  }${dropTargetPlayerId === player.id ? " is-drop-target" : ""}`}
-                  key={player.id}
-                  onDragOver={(event) => dragPlayerOver(player.id, event)}
-                  onDrop={(event) => dropPlayer(player.id, event)}
-                >
-                  <button
-                    aria-label={`Move ${player.name || `Player ${index + 1}`}`}
-                    className="drag-handle"
-                    draggable
-                    type="button"
-                    title="Drag to reorder"
-                    onDragEnd={finishPlayerDrag}
-                    onDragStart={(event) => startPlayerDrag(player.id, event)}
-                  >
-                    ::
-                  </button>
-                  <PlayerAvatar
-                    className="player-token"
-                    fallback={String(index + 1)}
-                    player={player}
-                    onImageChange={(event) => changePlayerAvatar(player.id, event)}
-                  />
-                  <input
-                    aria-label={`Player ${index + 1} name`}
-                    placeholder={`Player ${index + 1}`}
-                    value={player.name}
-                    onChange={(event) => updatePlayerName(player.id, event.target.value)}
-                  />
-                  <button
-                    className="icon-button"
-                    type="button"
-                    title={`Remove ${player.name}`}
-                    onClick={() => removePlayer(player.id)}
-                  >
-                    -
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="panel role-panel">
-            <div className="panel-heading">
-              <h2>Roles</h2>
-              <span className={roleMismatch ? "count-warning" : "count-ok"}>
-                {totalRoles}/{players.length}
-              </span>
-            </div>
-
-            <RoleCounter
-              label="Civilians"
-              value={counts.civilian}
-              onMinus={() => changeCount("civilian", -1)}
-              onPlus={() => changeCount("civilian", 1)}
-            />
-            <RoleCounter
-              label="Undercovers"
-              value={counts.undercover}
-              onMinus={() => changeCount("undercover", -1)}
-              onPlus={() => changeCount("undercover", 1)}
-            />
-            <RoleCounter
-              label="Mr. Whites"
-              value={counts.mrWhite}
-              onMinus={() => changeCount("mrWhite", -1)}
-              onPlus={() => changeCount("mrWhite", 1)}
-            />
-
-            <label className="toggle-row">
-              <span>Show role during word reveal</span>
-              <input
-                type="checkbox"
-                checked={showRoles}
-                onChange={(event) => updateShowRoles(event.target.checked)}
-              />
-            </label>
-
-            <label className="toggle-row">
-              <span>Discussion timer</span>
-              <input
-                type="checkbox"
-                checked={timerEnabled}
-                onChange={(event) => updateTimerEnabled(event.target.checked)}
-              />
-            </label>
-
-            {timerEnabled && (
-              <TimerSetting
-                seconds={timerSeconds}
-                onMinus={() => changeTimerSeconds(-30)}
-                onPlus={() => changeTimerSeconds(30)}
-              />
-            )}
-
-            <div className="start-area">
-              {error && <p className="error-text">{error}</p>}
-              <button className="primary-button" type="button" onClick={startRound} disabled={roleMismatch}>
-                Start round
-              </button>
-            </div>
-          </section>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-type PlayerStripProps = {
-  assignments: PlayerAssignment[];
-  eliminatedIds: Set<string>;
-  turnStarterId?: string;
-};
-
-function PlayerStrip({ assignments, eliminatedIds, turnStarterId }: PlayerStripProps) {
-  return (
-    <div className="player-strip">
-      {assignments.map((assignment) => {
-        const isEliminated = eliminatedIds.has(assignment.player.id);
-        const isStarter = assignment.player.id === turnStarterId;
-
-        return (
-          <div className={`strip-token ${isEliminated ? "is-out" : ""} ${isStarter ? "is-starter" : ""}`} key={assignment.player.id}>
-            <PlayerAvatar className="strip-avatar" player={assignment.player} />
-            <strong>{assignment.player.name}</strong>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-type DiscussionTimerProps = {
-  remainingSeconds: number;
-  timerRunning: boolean;
-  timerSeconds: number;
-  onPause: () => void;
-  onReset: () => void;
-  onStart: () => void;
-};
-
-function DiscussionTimer({
-  remainingSeconds,
-  timerRunning,
-  timerSeconds,
-  onPause,
-  onReset,
-  onStart,
-}: DiscussionTimerProps) {
-  return (
-    <div className={`discussion-timer${remainingSeconds === 0 ? " is-finished" : ""}`}>
-      <span>{remainingSeconds === 0 ? "Time's up" : "Discussion timer"}</span>
-      <strong>{formatTimer(remainingSeconds)}</strong>
-      <div className="button-row">
-        <button className="secondary-button" type="button" onClick={timerRunning ? onPause : onStart}>
-          {timerRunning ? "Pause" : "Start"}
-        </button>
-        <button className="secondary-button" type="button" onClick={onReset}>
-          Reset {formatTimer(timerSeconds)}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function FitText({
-  text,
-  className,
-  max = 5.8,
-  min = 1.6,
-}: {
-  text: string;
-  className?: string;
-  max?: number;
-  min?: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    const parent = el?.parentElement;
-    if (!el || !parent) return;
-
-    let lastWidth = -1;
-    // Words wrap normally at spaces; we only shrink the font when a single
-    // word is wider than the box (which would otherwise overflow), so short
-    // phrases keep a big font and long phrases wrap to a new line instead.
-    const fit = () => {
-      let size = max;
-      el.style.fontSize = `${size}rem`;
-      while (el.scrollWidth > el.clientWidth && size > min) {
-        size -= 0.15;
-        el.style.fontSize = `${size}rem`;
-      }
-    };
-
-    fit();
-    // Observe the parent's width only; refit just when the available width
-    // changes, so font-driven height changes can't trigger a resize loop.
-    const observer = new ResizeObserver(() => {
-      const width = parent.clientWidth;
-      if (width === lastWidth) return;
-      lastWidth = width;
-      fit();
-    });
-    observer.observe(parent);
-    return () => observer.disconnect();
-  }, [text, max, min]);
-
-  return (
-    <div ref={ref} className={className}>
-      {text}
-    </div>
-  );
-}
-
-function PlayerSpotlight({ assignment }: { assignment: PlayerAssignment }) {
-  return (
-    <div className="player-spotlight">
-      <PlayerAvatar className="big-token" player={assignment.player} />
-      <h1>{assignment.player.name}</h1>
-    </div>
-  );
-}
-
-type PlayerAvatarProps = {
-  className: string;
-  player: PlayerInput;
-  fallback?: string;
-  onImageChange?: (event: ChangeEvent<HTMLInputElement>) => void;
-};
-
-function PlayerAvatar({ className, player, fallback, onImageChange }: PlayerAvatarProps) {
-  const label = initials(player.name) || fallback || "?";
-  const avatarClassName = `player-avatar ${className}`;
-  const content = player.avatarUrl ? <img src={player.avatarUrl} alt="" /> : label;
-
-  if (onImageChange) {
-    return (
-      <label className={`${avatarClassName} is-editable`} title={`Change image for ${player.name}`}>
-        {content}
-        <input
-          aria-label={`Change image for ${player.name}`}
-          className="avatar-input"
-          type="file"
-          accept="image/*"
-          capture="user"
-          onChange={onImageChange}
-        />
-      </label>
-    );
-  }
-
-  return <span className={avatarClassName}>{content}</span>;
-}
-
-type RoleCounterProps = {
-  label: string;
-  value: number;
-  onMinus: () => void;
-  onPlus: () => void;
-};
-
-function RoleCounter({ label, value, onMinus, onPlus }: RoleCounterProps) {
-  return (
-    <div className="role-counter">
-      <span>{label}</span>
-      <div>
-        <button className="icon-button" type="button" title={`Decrease ${label}`} onClick={onMinus}>
-          -
-        </button>
-        <strong>{value}</strong>
-        <button className="icon-button" type="button" title={`Increase ${label}`} onClick={onPlus}>
-          +
-        </button>
-      </div>
-    </div>
-  );
-}
-
-type TimerSettingProps = {
-  seconds: number;
-  onMinus: () => void;
-  onPlus: () => void;
-};
-
-function TimerSetting({ seconds, onMinus, onPlus }: TimerSettingProps) {
-  return (
-    <div className="timer-setting">
-      <span>Duration</span>
-      <div>
-        <button className="icon-button" type="button" title="Decrease timer" onClick={onMinus}>
-          -
-        </button>
-        <strong>{formatTimer(seconds)}</strong>
-        <button className="icon-button" type="button" title="Increase timer" onClick={onPlus}>
-          +
-        </button>
-      </div>
-    </div>
+    <SetupScreen
+      players={players}
+      counts={counts}
+      showRoles={showRoles}
+      timerEnabled={timerEnabled}
+      timerSeconds={timerSeconds}
+      deckCategory={deckCategory}
+      deckDifficulty={deckDifficulty}
+      categoryOptions={categoryOptions}
+      filteredWordCount={filteredWordPairs.length}
+      totalWordCount={wordPairs.length}
+      deckStats={deckStats}
+      roleMismatch={roleMismatch}
+      totalRoles={totalRoles}
+      deckEmpty={deckEmpty}
+      error={error}
+      leavingId={leavingId}
+      draggingPlayerId={draggingPlayerId}
+      dropTargetPlayerId={dropTargetPlayerId}
+      roundHistory={roundHistory}
+      sessionStats={sessionStats}
+      onAddPlayer={addPlayer}
+      onRemovePlayer={removePlayer}
+      onPlayerNameChange={updatePlayerName}
+      onPlayerAvatarChange={changePlayerAvatar}
+      onPlayerDragStart={startPlayerDrag}
+      onPlayerDragOver={dragPlayerOver}
+      onPlayerDrop={dropPlayer}
+      onPlayerDragEnd={finishPlayerDrag}
+      onRoleCountChange={changeCount}
+      onShowRolesChange={updateShowRoles}
+      onTimerEnabledChange={updateTimerEnabled}
+      onTimerSecondsChange={changeTimerSeconds}
+      onDeckCategoryChange={updateDeckCategory}
+      onDeckDifficultyChange={updateDeckDifficulty}
+      onStartRound={startRound}
+      onClearRoundHistory={clearRoundHistory}
+    />
   );
 }
 
@@ -971,6 +585,54 @@ function loadTimerSeconds(): number {
   return Number.isFinite(parsedSeconds) ? clamp(parsedSeconds, minTimerSeconds, maxTimerSeconds) : defaultTimerSeconds;
 }
 
+function loadRoundHistory(): RoundHistoryEntry[] {
+  const saved = localStorage.getItem(savedRoundHistoryKey);
+
+  if (!saved) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? (parsed as RoundHistoryEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadDeckCategory(): string {
+  const saved = localStorage.getItem(savedDeckCategoryKey);
+
+  if (!saved) {
+    return allCategories;
+  }
+
+  try {
+    const parsed = JSON.parse(saved);
+    return typeof parsed === "string" ? parsed : allCategories;
+  } catch {
+    return allCategories;
+  }
+}
+
+function loadDeckDifficulty(): DifficultyFilter {
+  const saved = localStorage.getItem(savedDeckDifficultyKey);
+
+  if (!saved) {
+    return anyDifficulty;
+  }
+
+  try {
+    return normalizeDeckDifficulty(JSON.parse(saved));
+  } catch {
+    return anyDifficulty;
+  }
+}
+
+function normalizeDeckDifficulty(value: unknown): DifficultyFilter {
+  return value === "easy" || value === "tricky" || value === anyDifficulty ? value : anyDifficulty;
+}
+
 function trimCountsToPlayers(counts: RoleCounts, playerCount: number): RoleCounts {
   const nextCounts = { ...counts };
 
@@ -987,41 +649,8 @@ function trimCountsToPlayers(counts: RoleCounts, playerCount: number): RoleCount
   return nextCounts;
 }
 
-function roleLabel(role: PlayerAssignment["role"]): string {
-  if (role === "mrWhite") {
-    return "Mr. White";
-  }
-
-  return role === "undercover" ? "Undercover" : "Civilian";
-}
-
-function winnerLabel(winner: Exclude<GameStatus, { state: "playing" }>["winner"]): string {
-  if (winner === "mrWhite") {
-    return "Mr. White";
-  }
-
-  return winner === "infiltrators" ? "Infiltrators" : "Civilians";
-}
-
-function formatTimer(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function initials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
 }
 
 export default App;

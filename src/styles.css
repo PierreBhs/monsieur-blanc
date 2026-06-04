@@ -40,7 +40,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -185,6 +186,22 @@ h2 {
   background: #c9f4db;
 }
 
+.session-panel {
+  margin-top: 18px;
+  background: #d7f0ff;
+}
+
+.scoreboard-panel {
+  width: 100%;
+  margin-top: 0;
+  border: 3px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background: #d7f0ff;
+  box-shadow: var(--paper-shadow);
+  text-align: left;
+}
+
 .panel-heading,
 .top-bar,
 .phase-band {
@@ -327,6 +344,16 @@ input {
   background: var(--surface-2);
 }
 
+select {
+  min-width: 0;
+  height: 46px;
+  border: 3px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--text);
+  background: var(--surface-2);
+}
+
 input[type="checkbox"] {
   width: 20px;
   height: 20px;
@@ -334,6 +361,11 @@ input[type="checkbox"] {
 }
 
 input:focus {
+  outline: 3px solid var(--sky);
+  border-color: var(--border);
+}
+
+select:focus {
   outline: 3px solid var(--sky);
   border-color: var(--border);
 }
@@ -373,6 +405,28 @@ input:focus {
   gap: 12px;
   min-height: 58px;
   border-top: 3px solid rgba(32, 23, 15, 0.22);
+}
+
+.deck-controls {
+  display: grid;
+  gap: 10px;
+  border-bottom: 3px solid rgba(32, 23, 15, 0.22);
+  padding-bottom: 14px;
+}
+
+.deck-controls label {
+  display: grid;
+  gap: 6px;
+}
+
+.deck-controls label span,
+.deck-count {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.deck-count {
+  margin: 0;
 }
 
 .role-counter:first-of-type {
@@ -832,6 +886,155 @@ input:focus {
   padding: 0 14px;
 }
 
+.compact-button {
+  min-height: 36px;
+  padding: 0 10px;
+  box-shadow: 3px 3px 0 var(--border);
+}
+
+.session-totals,
+.leader-list,
+.history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.session-totals {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.session-totals > div,
+.leader-row,
+.history-row {
+  border: 3px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.session-totals > div {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
+.session-totals span,
+.history-row span,
+.history-row small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.session-totals strong {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.leader-list {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  margin-bottom: 14px;
+}
+
+.leader-header {
+  display: none;
+}
+
+.leader-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  box-shadow: 3px 3px 0 var(--accent);
+}
+
+.leader-rank {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--border);
+  border-radius: 8px;
+  background: var(--warning);
+  font-weight: 900;
+}
+
+.leader-row > span:not(.leader-rank),
+.history-row strong,
+.history-row small {
+  overflow-wrap: anywhere;
+}
+
+.leader-row > span:not(.leader-rank),
+.history-row strong {
+  font-weight: 900;
+}
+
+.leader-row strong {
+  font-size: 1.7rem;
+  line-height: 1;
+  text-shadow: 2px 2px 0 #c9f4db;
+}
+
+.leader-row small {
+  grid-column: 2 / 4;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.scoreboard-panel .leader-list {
+  grid-template-columns: 1fr;
+  max-height: min(46vh, 430px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.scoreboard-panel .leader-header,
+.scoreboard-panel .leader-row {
+  grid-template-columns: 44px minmax(0, 1fr) minmax(86px, auto) minmax(70px, auto);
+}
+
+.scoreboard-panel .leader-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  border: 3px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--muted);
+  background: var(--surface-3);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.scoreboard-panel .leader-row {
+  min-height: 58px;
+  box-shadow: 3px 3px 0 var(--border);
+}
+
+.scoreboard-panel .leader-row strong,
+.scoreboard-panel .leader-row small {
+  text-align: right;
+}
+
+.scoreboard-panel .leader-row small {
+  grid-column: auto;
+}
+
+.history-list {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.history-row {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     padding: 14px;
@@ -883,6 +1086,11 @@ input:focus {
 
   .summary-row span:last-child {
     text-align: left;
+  }
+
+  .session-totals,
+  .history-list {
+    grid-template-columns: 1fr 1fr;
   }
 
   .help-window {
