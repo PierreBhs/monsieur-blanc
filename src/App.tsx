@@ -17,6 +17,7 @@ import {
   evaluateGameStatus,
   isCorrectMrWhiteGuess,
 } from "./game/core";
+import { logger } from "./log/logger";
 import type { PlayPhase } from "./game/playPhase";
 import {
   appendRoundHistory,
@@ -139,11 +140,13 @@ function App() {
   function updateShowRoles(nextShowRoles: boolean) {
     setShowRoles(nextShowRoles);
     localStorage.setItem(savedShowRolesKey, JSON.stringify(nextShowRoles));
+    logger.log("TOGGLE_SHOW_ROLES", { value: nextShowRoles });
   }
 
   function updateTimerEnabled(nextTimerEnabled: boolean) {
     setTimerEnabled(nextTimerEnabled);
     localStorage.setItem(savedTimerEnabledKey, JSON.stringify(nextTimerEnabled));
+    logger.log("TOGGLE_TIMER", { value: nextTimerEnabled });
   }
 
   function updateTimerSeconds(nextTimerSeconds: number) {
@@ -160,16 +163,19 @@ function App() {
   function updateDeckCategory(nextDeckCategory: string) {
     setDeckCategory(nextDeckCategory);
     localStorage.setItem(savedDeckCategoryKey, JSON.stringify(nextDeckCategory));
+    logger.log("SET_DECK_CATEGORY", { category: nextDeckCategory });
   }
 
   function updateDeckDifficulty(nextDeckDifficulty: string) {
     const normalizedDifficulty = normalizeDeckDifficulty(nextDeckDifficulty);
     setDeckDifficulty(normalizedDifficulty);
     localStorage.setItem(savedDeckDifficultyKey, JSON.stringify(normalizedDifficulty));
+    logger.log("SET_DECK_DIFFICULTY", { difficulty: normalizedDifficulty });
   }
 
   function updatePlayerName(id: string, name: string) {
     updatePlayers(players.map((player) => (player.id === id ? { ...player, name } : player)));
+    logger.logCoalesced("RENAME_PLAYER", id, { id, name });
   }
 
   function updatePlayerAvatar(id: string, avatarUrl: string) {
@@ -191,11 +197,13 @@ function App() {
       }
     });
     reader.readAsDataURL(file);
+    logger.log("SET_AVATAR", { id });
   }
 
   function addPlayer() {
     updatePlayers([...players, { id: crypto.randomUUID(), name: "" }]);
     updateCounts({ ...counts, civilian: counts.civilian + 1 });
+    logger.log("ADD_PLAYER", { players: players.length + 1 });
   }
 
   function removePlayer(id: string) {
@@ -206,6 +214,7 @@ function App() {
 
     if (leavingId) return;
 
+    logger.log("REMOVE_PLAYER", { id });
     setLeavingId(id);
     setTimeout(() => {
       setPlayers((currentPlayers) => {
@@ -242,6 +251,7 @@ function App() {
     const targetIndex = boundedInsertionIndex > draggedIndex ? boundedInsertionIndex - 1 : boundedInsertionIndex;
     nextPlayers.splice(targetIndex, 0, draggedPlayer);
     updatePlayers(nextPlayers);
+    logger.log("REORDER_PLAYER", { id: draggedId, fromIndex: draggedIndex, toIndex: targetIndex });
   }
 
   function startPlayerDrag(id: string, event: PointerEvent<HTMLButtonElement>) {
@@ -282,10 +292,13 @@ function App() {
     if (delta > 0 && totalRoles >= players.length) return;
     const nextValue = Math.max(0, counts[role] + delta);
     updateCounts({ ...counts, [role]: nextValue });
+    logger.log("CHANGE_ROLE_COUNT", { role, delta, value: nextValue });
   }
 
   function changeTimerSeconds(delta: number) {
-    updateTimerSeconds(clamp(timerSeconds + delta, minTimerSeconds, maxTimerSeconds));
+    const nextSeconds = clamp(timerSeconds + delta, minTimerSeconds, maxTimerSeconds);
+    updateTimerSeconds(nextSeconds);
+    logger.log("CHANGE_TIMER_SECONDS", { delta, seconds: nextSeconds });
   }
 
   function startRound() {
@@ -311,6 +324,15 @@ function App() {
       setMrWhiteGuess("");
       setGameStatus({ state: "playing" });
       setLastElimination("");
+
+      logger.endGame("new-round");
+      logger.startGame();
+      logger.log("START_ROUND", {
+        wordPairId: nextRound.wordPair.id,
+        category: nextRound.wordPair.category,
+        counts,
+        playerCount: nextRound.assignments.length,
+      });
     } catch (roundError) {
       setError(roundError instanceof Error ? roundError.message : "Could not start the round.");
     }
@@ -328,25 +350,30 @@ function App() {
       return;
     }
 
+    logger.log("NEXT_PLAYER", { index: activeIndex + 1 });
     setActiveIndex(activeIndex + 1);
   }
 
   function startNextTurn(assignments: PlayerAssignment[], nextEliminatedIds: Set<string>) {
-    setTurnStarter(chooseRandomActiveAssignment(assignments, nextEliminatedIds, Math.random, turnStarter?.player.id));
+    const starter = chooseRandomActiveAssignment(assignments, nextEliminatedIds, Math.random, turnStarter?.player.id);
+    setTurnStarter(starter);
     setRemainingSeconds(timerSeconds);
     setTimerRunning(timerEnabled);
     setPhase("turn");
+    logger.log("START_TURN", { starter: starter?.player.name });
   }
 
   function startVote() {
     setTimerRunning(false);
     setSelectedElimination(null);
     setPhase("vote");
+    logger.log("START_VOTE");
   }
 
   function selectElimination(assignment: PlayerAssignment) {
     setLastElimination("");
     setSelectedElimination(assignment);
+    logger.log("SELECT_ELIMINATION", { player: assignment.player.name });
   }
 
   function confirmElimination() {
@@ -355,6 +382,10 @@ function App() {
     }
 
     setSelectedElimination(null);
+    logger.log("CONFIRM_ELIMINATION", {
+      player: selectedElimination.player.name,
+      role: selectedElimination.role,
+    });
 
     if (selectedElimination.role === "mrWhite") {
       setPendingElimination(selectedElimination);
@@ -371,7 +402,10 @@ function App() {
       return;
     }
 
-    if (isCorrectMrWhiteGuess(mrWhiteGuess, round.wordPair.civilian)) {
+    const correct = isCorrectMrWhiteGuess(mrWhiteGuess, round.wordPair.civilian);
+    logger.log("SUBMIT_MRWHITE_GUESS", { guess: mrWhiteGuess, correct });
+
+    if (correct) {
       const nextStatus: GameStatus = {
         state: "won",
         winner: "mrWhite",
@@ -395,6 +429,11 @@ function App() {
     nextEliminatedIds.add(assignment.player.id);
     const nextStatus = evaluateGameStatus(round.assignments, nextEliminatedIds);
 
+    logger.log("FINISH_ELIMINATION", {
+      player: assignment.player.name,
+      role: assignment.role,
+      state: nextStatus.state,
+    });
     setEliminatedIds(nextEliminatedIds);
     setSelectedElimination(null);
     setPendingElimination(assignment);
@@ -414,10 +453,12 @@ function App() {
 
     const entry = createRoundHistoryEntry(assignments, status, new Date().toISOString());
     updateRoundHistory(appendRoundHistory(roundHistory, entry));
+    logger.log("RECORD_RESULT", { winner: status.winner, reason: status.reason, word: entry.word });
   }
 
   function clearRoundHistory() {
     updateRoundHistory([]);
+    logger.log("CLEAR_HISTORY");
   }
 
   function continueAfterElimination() {
@@ -426,6 +467,7 @@ function App() {
     }
 
     setPendingElimination(null);
+    logger.log("CONTINUE_AFTER_ELIMINATION");
 
     if (gameStatus.state === "won") {
       setPhase("gameOver");
@@ -436,6 +478,7 @@ function App() {
   }
 
   function resetRound() {
+    logger.endGame("back-to-setup");
     setRound(null);
     setPhase("reveal");
     setActiveIndex(0);
@@ -480,7 +523,14 @@ function App() {
         sessionStats={sessionStats}
         onBackToSetup={resetRound}
         onContinuePlaying={startRound}
-        onReveal={() => setIsRevealed(true)}
+        onReveal={() => {
+          logger.log("REVEAL_WORD", {
+            player: activeAssignment?.player.name,
+            role: activeAssignment?.role,
+            word: activeAssignment?.word,
+          });
+          setIsRevealed(true);
+        }}
         onNextPlayer={goToNextPlayer}
         onStartVote={startVote}
         onSelectElimination={selectElimination}
@@ -489,12 +539,19 @@ function App() {
         onSubmitMrWhiteGuess={submitMrWhiteGuess}
         onSkipMrWhiteGuess={finishElimination}
         onContinueAfterElimination={continueAfterElimination}
-        onTimerPause={() => setTimerRunning(false)}
+        onTimerPause={() => {
+          logger.log("TIMER_PAUSE");
+          setTimerRunning(false);
+        }}
         onTimerReset={() => {
+          logger.log("TIMER_RESET");
           setRemainingSeconds(timerSeconds);
           setTimerRunning(true);
         }}
-        onTimerStart={() => setTimerRunning(true)}
+        onTimerStart={() => {
+          logger.log("TIMER_START");
+          setTimerRunning(true);
+        }}
       />
     );
   }
@@ -536,6 +593,7 @@ function App() {
       onDeckDifficultyChange={updateDeckDifficulty}
       onStartRound={startRound}
       onClearRoundHistory={clearRoundHistory}
+      onDownloadLogs={() => logger.downloadLogs()}
     />
   );
 }

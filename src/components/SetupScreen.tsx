@@ -46,6 +46,7 @@ type SetupScreenProps = {
   onDeckDifficultyChange: (difficulty: string) => void;
   onStartRound: () => void;
   onClearRoundHistory: () => void;
+  onDownloadLogs: () => void;
 };
 
 export function SetupScreen({
@@ -84,6 +85,7 @@ export function SetupScreen({
   onDeckDifficultyChange,
   onStartRound,
   onClearRoundHistory,
+  onDownloadLogs,
 }: SetupScreenProps) {
   return (
     <main key="setup" className="app-shell">
@@ -228,7 +230,12 @@ export function SetupScreen({
           </section>
         </div>
 
-        <SessionSummary history={roundHistory} stats={sessionStats} onClear={onClearRoundHistory} />
+        <SessionSummary
+          history={roundHistory}
+          stats={sessionStats}
+          onClear={onClearRoundHistory}
+          onDownloadLogs={onDownloadLogs}
+        />
       </section>
     </main>
   );

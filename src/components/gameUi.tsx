@@ -200,6 +200,7 @@ type SessionSummaryProps = {
   history: RoundHistoryEntry[];
   stats: SessionStats;
   onClear?: () => void;
+  onDownloadLogs?: () => void;
   title?: string;
   framed?: boolean;
 };
@@ -253,18 +254,32 @@ export function DeckFilterControls({
   );
 }
 
-export function SessionSummary({ history, stats, onClear, title = "Session", framed = true }: SessionSummaryProps) {
+export function SessionSummary({
+  history,
+  stats,
+  onClear,
+  onDownloadLogs,
+  title = "Session",
+  framed = true,
+}: SessionSummaryProps) {
   const hasPlayers = stats.players.length > 0;
 
   return (
     <section className={`${framed ? "panel " : ""}session-panel${framed ? "" : " scoreboard-panel"}`}>
       <div className="panel-heading">
         <h2>{title}</h2>
-        {history.length > 0 && onClear && (
-          <button className="secondary-button compact-button" type="button" onClick={onClear}>
-            Clear
-          </button>
-        )}
+        <div className="panel-heading-actions">
+          {onDownloadLogs && (
+            <button className="secondary-button compact-button" type="button" onClick={onDownloadLogs}>
+              Download logs
+            </button>
+          )}
+          {history.length > 0 && onClear && (
+            <button className="secondary-button compact-button" type="button" onClick={onClear}>
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="session-totals">
