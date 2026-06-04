@@ -202,6 +202,55 @@ type SessionSummaryProps = {
   onClear: () => void;
 };
 
+type DeckFilterControlsProps = {
+  categories: { value: string; label: string; count: number }[];
+  category: string;
+  difficulty: string;
+  filteredCount: number;
+  totalCount: number;
+  onCategoryChange: (category: string) => void;
+  onDifficultyChange: (difficulty: string) => void;
+};
+
+export function DeckFilterControls({
+  categories,
+  category,
+  difficulty,
+  filteredCount,
+  totalCount,
+  onCategoryChange,
+  onDifficultyChange,
+}: DeckFilterControlsProps) {
+  return (
+    <div className="deck-controls">
+      <label>
+        <span>Category</span>
+        <select value={category} onChange={(event) => onCategoryChange(event.target.value)}>
+          <option value="all">All categories</option>
+          {categories.map((option) => (
+            <option value={option.value} key={option.value}>
+              {option.label} ({option.count})
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label>
+        <span>Difficulty</span>
+        <select value={difficulty} onChange={(event) => onDifficultyChange(event.target.value)}>
+          <option value="any">Any difficulty</option>
+          <option value="easy">Easy</option>
+          <option value="tricky">Tricky</option>
+        </select>
+      </label>
+
+      <p className={filteredCount > 0 ? "deck-count" : "error-text"}>
+        {filteredCount}/{totalCount} pairs available
+      </p>
+    </div>
+  );
+}
+
 export function SessionSummary({ history, stats, onClear }: SessionSummaryProps) {
   return (
     <section className="panel session-panel">

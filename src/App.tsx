@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
 import { WordHelp } from "./WordHelp";
 import {
+  DeckFilterControls,
   DiscussionTimer,
   FitText,
   PlayerAvatar,
@@ -13,6 +14,13 @@ import {
   roleTotal,
   winnerLabel,
 } from "./components/gameUi";
+import {
+  allCategories,
+  anyDifficulty,
+  deckCategoryOptions,
+  filterWordPairs,
+  type DifficultyFilter,
+} from "./decks/filters";
 import { wordPairs } from "./decks/wordPairs";
 import {
   chooseRandomActiveAssignment,
@@ -34,6 +42,8 @@ const savedShowRolesKey = "mr-white.show-roles";
 const savedTimerEnabledKey = "mr-white.timer-enabled";
 const savedTimerSecondsKey = "mr-white.timer-seconds";
 const savedRoundHistoryKey = "mr-white.round-history";
+const savedDeckCategoryKey = "mr-white.deck-category";
+const savedDeckDifficultyKey = "mr-white.deck-difficulty";
 const defaultTimerSeconds = 120;
 const minTimerSeconds = 30;
 const maxTimerSeconds = 600;
@@ -61,6 +71,8 @@ function App() {
   const [showRoles, setShowRoles] = useState(loadShowRoles);
   const [timerEnabled, setTimerEnabled] = useState(loadTimerEnabled);
   const [timerSeconds, setTimerSeconds] = useState(loadTimerSeconds);
+  const [deckCategory, setDeckCategory] = useState(loadDeckCategory);
+  const [deckDifficulty, setDeckDifficulty] = useState<DifficultyFilter>(loadDeckDifficulty);
   const [round, setRound] = useState<Round | null>(null);
   const [phase, setPhase] = useState<PlayPhase>("reveal");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -83,11 +95,17 @@ function App() {
   const activeAssignment = round?.assignments[activeIndex];
   const roleMismatch = totalRoles !== players.length;
   const activeAssignments = round?.assignments.filter((assignment) => !eliminatedIds.has(assignment.player.id)) ?? [];
+  const categoryOptions = useMemo(() => deckCategoryOptions(wordPairs), []);
+  const filteredWordPairs = useMemo(
+    () => filterWordPairs(wordPairs, { category: deckCategory, difficulty: deckDifficulty }),
+    [deckCategory, deckDifficulty],
+  );
+  const deckEmpty = filteredWordPairs.length === 0;
 
   const deckStats = useMemo(() => {
-    const categories = new Set(wordPairs.map((pair) => pair.category));
-    return `${wordPairs.length} pairs across ${categories.size} categories`;
-  }, []);
+    const categories = new Set(filteredWordPairs.map((pair) => pair.category));
+    return `${filteredWordPairs.length} pairs across ${categories.size} categories`;
+  }, [filteredWordPairs]);
   const sessionStats = useMemo(() => calculateSessionStats(roundHistory), [roundHistory]);
 
   useEffect(() => {
@@ -137,6 +155,17 @@ function App() {
   function updateRoundHistory(nextRoundHistory: RoundHistoryEntry[]) {
     setRoundHistory(nextRoundHistory);
     localStorage.setItem(savedRoundHistoryKey, JSON.stringify(nextRoundHistory));
+  }
+
+  function updateDeckCategory(nextDeckCategory: string) {
+    setDeckCategory(nextDeckCategory);
+    localStorage.setItem(savedDeckCategoryKey, JSON.stringify(nextDeckCategory));
+  }
+
+  function updateDeckDifficulty(nextDeckDifficulty: string) {
+    const normalizedDifficulty = normalizeDeckDifficulty(nextDeckDifficulty);
+    setDeckDifficulty(normalizedDifficulty);
+    localStorage.setItem(savedDeckDifficultyKey, JSON.stringify(normalizedDifficulty));
   }
 
   function updatePlayerName(id: string, name: string) {
@@ -254,7 +283,7 @@ function App() {
       const nextRound = createRound({
         players: players.map((player) => ({ ...player, name: player.name.trim() })),
         counts,
-        deck: wordPairs,
+        deck: filteredWordPairs,
       });
 
       setRound(nextRound);
@@ -676,6 +705,16 @@ function App() {
               </span>
             </div>
 
+            <DeckFilterControls
+              categories={categoryOptions}
+              category={deckCategory}
+              difficulty={deckDifficulty}
+              filteredCount={filteredWordPairs.length}
+              totalCount={wordPairs.length}
+              onCategoryChange={updateDeckCategory}
+              onDifficultyChange={updateDeckDifficulty}
+            />
+
             <RoleCounter
               label="Civilians"
               value={counts.civilian}
@@ -723,7 +762,7 @@ function App() {
 
             <div className="start-area">
               {error && <p className="error-text">{error}</p>}
-              <button className="primary-button" type="button" onClick={startRound} disabled={roleMismatch}>
+              <button className="primary-button" type="button" onClick={startRound} disabled={roleMismatch || deckEmpty}>
                 Start round
               </button>
             </div>
@@ -836,6 +875,39 @@ function loadRoundHistory(): RoundHistoryEntry[] {
   } catch {
     return [];
   }
+}
+
+function loadDeckCategory(): string {
+  const saved = localStorage.getItem(savedDeckCategoryKey);
+
+  if (!saved) {
+    return allCategories;
+  }
+
+  try {
+    const parsed = JSON.parse(saved);
+    return typeof parsed === "string" ? parsed : allCategories;
+  } catch {
+    return allCategories;
+  }
+}
+
+function loadDeckDifficulty(): DifficultyFilter {
+  const saved = localStorage.getItem(savedDeckDifficultyKey);
+
+  if (!saved) {
+    return anyDifficulty;
+  }
+
+  try {
+    return normalizeDeckDifficulty(JSON.parse(saved));
+  } catch {
+    return anyDifficulty;
+  }
+}
+
+function normalizeDeckDifficulty(value: unknown): DifficultyFilter {
+  return value === "easy" || value === "tricky" || value === anyDifficulty ? value : anyDifficulty;
 }
 
 function trimCountsToPlayers(counts: RoleCounts, playerCount: number): RoleCounts {
