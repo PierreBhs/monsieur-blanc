@@ -695,6 +695,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function playerInsertionIndexFromPoint(clientY: number, draggedId: string, players: PlayerInput[]): number {
+  const draggedIndex = players.findIndex((player) => player.id === draggedId);
   const rows = Array.from(document.querySelectorAll<HTMLElement>("[data-player-row-id]")).filter(
     (row) => row.dataset.playerRowId !== draggedId,
   );
@@ -708,6 +709,18 @@ function playerInsertionIndexFromPoint(clientY: number, draggedId: string, playe
     }
 
     const rect = row.getBoundingClientRect();
+
+    if (clientY >= rect.top && clientY <= rect.bottom) {
+      if (playerIndex === draggedIndex + 1) {
+        return playerIndex + 1;
+      }
+
+      if (playerIndex === draggedIndex - 1) {
+        return playerIndex;
+      }
+
+      return clientY < rect.top + rect.height / 2 ? playerIndex : playerIndex + 1;
+    }
 
     if (clientY < rect.top + rect.height / 2) {
       return playerIndex;
