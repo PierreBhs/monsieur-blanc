@@ -28,9 +28,11 @@ type RoundScreenProps = {
   timerSeconds: number;
   remainingSeconds: number;
   lastElimination: string;
+  undercoverBonusPoints: number;
   selectedElimination: PlayerAssignment | null;
   pendingElimination: PlayerAssignment | null;
   mrWhiteGuess: string;
+  undercoverGuess: string;
   gameStatus: GameStatus;
   roundHistory: RoundHistoryEntry[];
   sessionStats: SessionStats;
@@ -44,6 +46,9 @@ type RoundScreenProps = {
   onMrWhiteGuessChange: (guess: string) => void;
   onSubmitMrWhiteGuess: () => void;
   onSkipMrWhiteGuess: (assignment: PlayerAssignment) => void;
+  onUndercoverGuessChange: (guess: string) => void;
+  onSubmitUndercoverGuess: () => void;
+  onSkipUndercoverGuess: (assignment: PlayerAssignment) => void;
   onContinueAfterElimination: () => void;
   onTimerPause: () => void;
   onTimerReset: () => void;
@@ -65,9 +70,11 @@ export function RoundScreen({
   timerSeconds,
   remainingSeconds,
   lastElimination,
+  undercoverBonusPoints,
   selectedElimination,
   pendingElimination,
   mrWhiteGuess,
+  undercoverGuess,
   gameStatus,
   roundHistory,
   sessionStats,
@@ -81,6 +88,9 @@ export function RoundScreen({
   onMrWhiteGuessChange,
   onSubmitMrWhiteGuess,
   onSkipMrWhiteGuess,
+  onUndercoverGuessChange,
+  onSubmitUndercoverGuess,
+  onSkipUndercoverGuess,
   onContinueAfterElimination,
   onTimerPause,
   onTimerReset,
@@ -241,17 +251,77 @@ export function RoundScreen({
           </div>
         )}
 
-        {phase === "eliminationReveal" && pendingElimination && (
-          <div className="round-card elimination-card">
+        {phase === "undercoverGuess" && pendingElimination && (
+          <div className="round-card guess-card">
             <div className="phase-band danger-band">
-              <span>Eliminated</span>
+              <span>Final guess</span>
+              <strong>Undercover</strong>
+            </div>
+            <div className="starter-layout">
+              <PlayerSpotlight assignment={pendingElimination} />
+              <p className="muted-text">
+                The undercover was voted out and can guess the civilian word for 1 point. The round keeps going either way.
+              </p>
+            </div>
+
+            <input
+              aria-label="Undercover word guess"
+              autoFocus
+              value={undercoverGuess}
+              onChange={(event) => onUndercoverGuessChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  onSubmitUndercoverGuess();
+                }
+              }}
+            />
+
+            <div className="button-row">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => onSkipUndercoverGuess(pendingElimination)}
+              >
+                Skip guess
+              </button>
+              <button className="primary-button" type="button" onClick={onSubmitUndercoverGuess}>
+                Submit guess
+              </button>
+            </div>
+          </div>
+        )}
+
+        {phase === "eliminationReveal" && pendingElimination && (
+          <div
+            className={`round-card elimination-card${
+              pendingElimination.role === "undercover" && undercoverBonusPoints > 0 ? " has-undercover-bonus" : ""
+            }`}
+          >
+            <div
+              className={`phase-band${
+                pendingElimination.role === "undercover" && undercoverBonusPoints > 0 ? " bonus-band" : " danger-band"
+              }`}
+            >
+              <span>
+                {pendingElimination.role === "undercover" && undercoverBonusPoints > 0 ? "Bonus earned" : "Eliminated"}
+              </span>
               <strong>{roleLabel(pendingElimination.role)}</strong>
             </div>
             <PlayerSpotlight assignment={pendingElimination} />
+            {pendingElimination.role === "undercover" && undercoverBonusPoints > 0 && (
+              <div className="undercover-bonus-banner" role="status">
+                <p className="undercover-bonus-kicker">Correct civilian word</p>
+                <p className="undercover-bonus-points">+{undercoverBonusPoints} point</p>
+                <p className="undercover-bonus-copy">
+                  <strong>{pendingElimination.player.name}</strong> guessed the hidden word before leaving the round.
+                </p>
+              </div>
+            )}
             <div className="elimination-role">
               <span>{pendingElimination.player.name} is eliminated</span>
               <strong>{roleLabel(pendingElimination.role)}</strong>
             </div>
+            {lastElimination && undercoverBonusPoints === 0 && <p className="status-line">{lastElimination}</p>}
             <button className="primary-button" type="button" onClick={onContinueAfterElimination}>
               Continue
             </button>
