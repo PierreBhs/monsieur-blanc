@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { WordHelp } from "./WordHelp";
 import { wordPairs } from "./decks/wordPairs";
 import {
@@ -314,7 +314,11 @@ function App() {
           <PlayerStrip assignments={round.assignments} eliminatedIds={eliminatedIds} turnStarterId={turnStarter?.player.id} />
 
           {phase === "reveal" && activeAssignment && (
-            <div className="round-card reveal-card">
+            <div
+              className={`round-card reveal-card${
+                isRevealed && activeAssignment.role === "mrWhite" ? " is-mrwhite" : ""
+              }`}
+            >
               <div className="phase-band">
                 <span>Private reveal</span>
                 <strong>
@@ -335,7 +339,7 @@ function App() {
                   <div className="secret-box">
                     {activeAssignment.word && <WordHelp word={activeAssignment.word} />}
                     {showRoles && <div className="role-name">{roleLabel(activeAssignment.role)}</div>}
-                    <div className="secret-word">{activeAssignment.word ?? "No word"}</div>
+                    <FitText className="secret-word" text={activeAssignment.word ?? "No word"} />
                   </div>
                   <button className="primary-button" type="button" onClick={goToNextPlayer}>
                     Hide and continue
@@ -662,6 +666,57 @@ function DiscussionTimer({
           Reset {formatTimer(timerSeconds)}
         </button>
       </div>
+    </div>
+  );
+}
+
+function FitText({
+  text,
+  className,
+  max = 5.8,
+  min = 1.6,
+}: {
+  text: string;
+  className?: string;
+  max?: number;
+  min?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const parent = el?.parentElement;
+    if (!el || !parent) return;
+
+    let lastWidth = -1;
+    // Words wrap normally at spaces; we only shrink the font when a single
+    // word is wider than the box (which would otherwise overflow), so short
+    // phrases keep a big font and long phrases wrap to a new line instead.
+    const fit = () => {
+      let size = max;
+      el.style.fontSize = `${size}rem`;
+      while (el.scrollWidth > el.clientWidth && size > min) {
+        size -= 0.15;
+        el.style.fontSize = `${size}rem`;
+      }
+    };
+
+    fit();
+    // Observe the parent's width only; refit just when the available width
+    // changes, so font-driven height changes can't trigger a resize loop.
+    const observer = new ResizeObserver(() => {
+      const width = parent.clientWidth;
+      if (width === lastWidth) return;
+      lastWidth = width;
+      fit();
+    });
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, [text, max, min]);
+
+  return (
+    <div ref={ref} className={className}>
+      {text}
     </div>
   );
 }
