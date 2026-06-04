@@ -1,5 +1,17 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
 import { WordHelp } from "./WordHelp";
+import {
+  DiscussionTimer,
+  FitText,
+  PlayerAvatar,
+  PlayerSpotlight,
+  PlayerStrip,
+  RoleCounter,
+  TimerSetting,
+  roleLabel,
+  roleTotal,
+  winnerLabel,
+} from "./components/gameUi";
 import { wordPairs } from "./decks/wordPairs";
 import {
   chooseRandomActiveAssignment,
@@ -58,7 +70,7 @@ function App() {
   const [draggingPlayerId, setDraggingPlayerId] = useState<string | null>(null);
   const [dropTargetPlayerId, setDropTargetPlayerId] = useState<string | null>(null);
 
-  const totalRoles = counts.civilian + counts.undercover + counts.mrWhite;
+  const totalRoles = roleTotal(counts);
   const activeAssignment = round?.assignments[activeIndex];
   const roleMismatch = totalRoles !== players.length;
   const activeAssignments = round?.assignments.filter((assignment) => !eliminatedIds.has(assignment.player.id)) ?? [];
@@ -689,201 +701,6 @@ function App() {
   );
 }
 
-type PlayerStripProps = {
-  assignments: PlayerAssignment[];
-  eliminatedIds: Set<string>;
-  turnStarterId?: string;
-};
-
-function PlayerStrip({ assignments, eliminatedIds, turnStarterId }: PlayerStripProps) {
-  return (
-    <div className="player-strip">
-      {assignments.map((assignment) => {
-        const isEliminated = eliminatedIds.has(assignment.player.id);
-        const isStarter = assignment.player.id === turnStarterId;
-
-        return (
-          <div className={`strip-token ${isEliminated ? "is-out" : ""} ${isStarter ? "is-starter" : ""}`} key={assignment.player.id}>
-            <PlayerAvatar className="strip-avatar" player={assignment.player} />
-            <strong>{assignment.player.name}</strong>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-type DiscussionTimerProps = {
-  remainingSeconds: number;
-  timerRunning: boolean;
-  timerSeconds: number;
-  onPause: () => void;
-  onReset: () => void;
-  onStart: () => void;
-};
-
-function DiscussionTimer({
-  remainingSeconds,
-  timerRunning,
-  timerSeconds,
-  onPause,
-  onReset,
-  onStart,
-}: DiscussionTimerProps) {
-  return (
-    <div className={`discussion-timer${remainingSeconds === 0 ? " is-finished" : ""}`}>
-      <span>{remainingSeconds === 0 ? "Time's up" : "Discussion timer"}</span>
-      <strong>{formatTimer(remainingSeconds)}</strong>
-      <div className="button-row">
-        <button className="secondary-button" type="button" onClick={timerRunning ? onPause : onStart}>
-          {timerRunning ? "Pause" : "Start"}
-        </button>
-        <button className="secondary-button" type="button" onClick={onReset}>
-          Reset {formatTimer(timerSeconds)}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function FitText({
-  text,
-  className,
-  max = 5.8,
-  min = 1.6,
-}: {
-  text: string;
-  className?: string;
-  max?: number;
-  min?: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    const parent = el?.parentElement;
-    if (!el || !parent) return;
-
-    let lastWidth = -1;
-    // Words wrap normally at spaces; we only shrink the font when a single
-    // word is wider than the box (which would otherwise overflow), so short
-    // phrases keep a big font and long phrases wrap to a new line instead.
-    const fit = () => {
-      let size = max;
-      el.style.fontSize = `${size}rem`;
-      while (el.scrollWidth > el.clientWidth && size > min) {
-        size -= 0.15;
-        el.style.fontSize = `${size}rem`;
-      }
-    };
-
-    fit();
-    // Observe the parent's width only; refit just when the available width
-    // changes, so font-driven height changes can't trigger a resize loop.
-    const observer = new ResizeObserver(() => {
-      const width = parent.clientWidth;
-      if (width === lastWidth) return;
-      lastWidth = width;
-      fit();
-    });
-    observer.observe(parent);
-    return () => observer.disconnect();
-  }, [text, max, min]);
-
-  return (
-    <div ref={ref} className={className}>
-      {text}
-    </div>
-  );
-}
-
-function PlayerSpotlight({ assignment }: { assignment: PlayerAssignment }) {
-  return (
-    <div className="player-spotlight">
-      <PlayerAvatar className="big-token" player={assignment.player} />
-      <h1>{assignment.player.name}</h1>
-    </div>
-  );
-}
-
-type PlayerAvatarProps = {
-  className: string;
-  player: PlayerInput;
-  fallback?: string;
-  onImageChange?: (event: ChangeEvent<HTMLInputElement>) => void;
-};
-
-function PlayerAvatar({ className, player, fallback, onImageChange }: PlayerAvatarProps) {
-  const label = initials(player.name) || fallback || "?";
-  const avatarClassName = `player-avatar ${className}`;
-  const content = player.avatarUrl ? <img src={player.avatarUrl} alt="" /> : label;
-
-  if (onImageChange) {
-    return (
-      <label className={`${avatarClassName} is-editable`} title={`Change image for ${player.name}`}>
-        {content}
-        <input
-          aria-label={`Change image for ${player.name}`}
-          className="avatar-input"
-          type="file"
-          accept="image/*"
-          capture="user"
-          onChange={onImageChange}
-        />
-      </label>
-    );
-  }
-
-  return <span className={avatarClassName}>{content}</span>;
-}
-
-type RoleCounterProps = {
-  label: string;
-  value: number;
-  onMinus: () => void;
-  onPlus: () => void;
-};
-
-function RoleCounter({ label, value, onMinus, onPlus }: RoleCounterProps) {
-  return (
-    <div className="role-counter">
-      <span>{label}</span>
-      <div>
-        <button className="icon-button" type="button" title={`Decrease ${label}`} onClick={onMinus}>
-          -
-        </button>
-        <strong>{value}</strong>
-        <button className="icon-button" type="button" title={`Increase ${label}`} onClick={onPlus}>
-          +
-        </button>
-      </div>
-    </div>
-  );
-}
-
-type TimerSettingProps = {
-  seconds: number;
-  onMinus: () => void;
-  onPlus: () => void;
-};
-
-function TimerSetting({ seconds, onMinus, onPlus }: TimerSettingProps) {
-  return (
-    <div className="timer-setting">
-      <span>Duration</span>
-      <div>
-        <button className="icon-button" type="button" title="Decrease timer" onClick={onMinus}>
-          -
-        </button>
-        <strong>{formatTimer(seconds)}</strong>
-        <button className="icon-button" type="button" title="Increase timer" onClick={onPlus}>
-          +
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function loadPlayers(): PlayerInput[] {
   const saved = localStorage.getItem(savedPlayersKey);
 
@@ -987,41 +804,8 @@ function trimCountsToPlayers(counts: RoleCounts, playerCount: number): RoleCount
   return nextCounts;
 }
 
-function roleLabel(role: PlayerAssignment["role"]): string {
-  if (role === "mrWhite") {
-    return "Mr. White";
-  }
-
-  return role === "undercover" ? "Undercover" : "Civilian";
-}
-
-function winnerLabel(winner: Exclude<GameStatus, { state: "playing" }>["winner"]): string {
-  if (winner === "mrWhite") {
-    return "Mr. White";
-  }
-
-  return winner === "infiltrators" ? "Infiltrators" : "Civilians";
-}
-
-function formatTimer(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function initials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
 }
 
 export default App;
