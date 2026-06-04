@@ -489,6 +489,7 @@ input:focus {
 
 .round-card {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   min-height: 520px;
   padding: 28px;
@@ -498,6 +499,24 @@ input:focus {
 .reveal-card {
   place-items: center;
   text-align: center;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+@keyframes mrwhite-blink {
+  0%,
+  100% {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 10px var(--danger), var(--paper-shadow);
+  }
+  50% {
+    border-color: rgba(255, 79, 123, 0.2);
+    box-shadow: 0 0 0 10px rgba(255, 79, 123, 0.18), var(--paper-shadow);
+  }
+}
+
+.reveal-card.is-mrwhite {
+  border-color: var(--danger);
+  animation: mrwhite-blink 0.7s ease-in-out infinite;
 }
 
 .turn-card,
@@ -537,6 +556,8 @@ input:focus {
 .secret-box {
   position: relative;
   width: min(560px, 100%);
+  min-width: 0;
+  max-width: 100%;
   border: 3px solid var(--border);
   border-radius: 8px;
   padding: 28px;
@@ -551,7 +572,7 @@ input:focus {
 }
 
 .secret-word {
-  overflow-wrap: anywhere;
+  max-width: 100%;
   font-size: clamp(2.4rem, 10vw, 5.8rem);
   font-weight: 900;
   line-height: 0.95;
