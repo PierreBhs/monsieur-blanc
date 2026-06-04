@@ -388,12 +388,20 @@ select:focus {
 }
 
 .add-player-button {
-  color: #fff;
-  background: #c92a5e;
+  background: var(--primary);
 }
 
 .add-player-button:hover {
-  background: #ab2150;
+  background: var(--primary-strong);
+}
+
+.remove-player-button {
+  color: #fff;
+  background: var(--danger);
+}
+
+.remove-player-button:hover {
+  background: #d93864;
 }
 
 .role-counter,
@@ -494,6 +502,15 @@ select:focus {
 
 .primary-button:hover {
   background: var(--primary-strong);
+}
+
+.danger-button {
+  color: #fff;
+  background: var(--danger);
+}
+
+.danger-button:hover {
+  background: #d93864;
 }
 
 .primary-button:disabled {
@@ -852,6 +869,11 @@ select:focus {
 
 .vote-row:hover {
   background: #ffef9a;
+}
+
+.vote-row.is-selected {
+  background: #c9f4db;
+  box-shadow: 4px 4px 0 var(--primary-strong);
 }
 
 .vote-row span:nth-child(2),

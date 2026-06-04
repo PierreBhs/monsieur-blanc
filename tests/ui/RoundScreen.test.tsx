@@ -47,6 +47,7 @@ function makeProps(overrides: Partial<ComponentProps<typeof RoundScreen>> = {}) 
     timerSeconds: 120,
     remainingSeconds: 120,
     lastElimination: "",
+    selectedElimination: null,
     pendingElimination: null,
     mrWhiteGuess: "",
     gameStatus: { state: "playing" },
@@ -58,6 +59,7 @@ function makeProps(overrides: Partial<ComponentProps<typeof RoundScreen>> = {}) 
     onNextPlayer: vi.fn(),
     onStartVote: vi.fn(),
     onSelectElimination: vi.fn(),
+    onConfirmElimination: vi.fn(),
     onMrWhiteGuessChange: vi.fn(),
     onSubmitMrWhiteGuess: vi.fn(),
     onSkipMrWhiteGuess: vi.fn(),
@@ -103,16 +105,36 @@ describe("RoundScreen", () => {
     expect(onStartVote).toHaveBeenCalledTimes(1);
   });
 
-  it("vote phase offers one elimination choice per active player", async () => {
+  it("vote phase selects a player before showing the vote-out action", async () => {
     const user = userEvent.setup();
     const onSelectElimination = vi.fn();
     render(<RoundScreen {...makeProps({ phase: "vote", onSelectElimination })} />);
 
-    const voteButtons = screen.getAllByText("Eliminate");
+    expect(screen.queryByRole("button", { name: /Vote out/i })).toBeNull();
+
+    const voteButtons = screen.getAllByText("Select");
     expect(voteButtons).toHaveLength(assignments.length);
 
     await user.click(voteButtons[1].closest("button")!);
     expect(onSelectElimination).toHaveBeenCalledWith(assignments[1]);
+  });
+
+  it("vote phase confirms the selected player", async () => {
+    const user = userEvent.setup();
+    const onConfirmElimination = vi.fn();
+    render(
+      <RoundScreen
+        {...makeProps({
+          phase: "vote",
+          selectedElimination: assignments[1],
+          onConfirmElimination,
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Vote out Ben" }));
+
+    expect(onConfirmElimination).toHaveBeenCalledTimes(1);
   });
 
   it("mrWhiteGuess phase wires the guess input to submit and skip", async () => {
