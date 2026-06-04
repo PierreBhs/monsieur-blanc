@@ -97,10 +97,25 @@ export function evaluateGameStatus(assignments: PlayerAssignment[], eliminatedId
   const activeCivilians = activeAssignments.filter((assignment) => assignment.role === "civilian").length;
   const activeUndercovers = activeAssignments.filter((assignment) => assignment.role === "undercover").length;
   const activeMrWhites = activeAssignments.filter((assignment) => assignment.role === "mrWhite").length;
-  const isThreePlayerMixedRound =
+  const isStartingThreePlayerMixedRound =
     assignments.length === 3 && startingCivilians === 1 && startingUndercovers === 1 && startingMrWhites === 1;
+  const isUnchangedStartingThreePlayerMixedRound = isStartingThreePlayerMixedRound && activeAssignments.length === 3;
+  const isFinalThreeMixedRound =
+    assignments.length > 3 &&
+    activeAssignments.length === 3 &&
+    activeCivilians === 1 &&
+    activeUndercovers === 1 &&
+    activeMrWhites === 1;
 
-  if (activeUndercovers === 0 && activeMrWhites > 0) {
+  if (isFinalThreeMixedRound) {
+    return {
+      state: "won",
+      winner: "mrWhite",
+      reason: "Only a civilian, an undercover, and Mr. White remain.",
+    };
+  }
+
+  if (activeUndercovers === 0 && activeMrWhites > 0 && activeCivilians <= 1) {
     return {
       state: "won",
       winner: "mrWhite",
@@ -108,7 +123,7 @@ export function evaluateGameStatus(assignments: PlayerAssignment[], eliminatedId
     };
   }
 
-  if (activeUndercovers === 0) {
+  if (activeUndercovers === 0 && activeMrWhites === 0) {
     return {
       state: "won",
       winner: "civilians",
@@ -124,7 +139,7 @@ export function evaluateGameStatus(assignments: PlayerAssignment[], eliminatedId
     };
   }
 
-  if (!isThreePlayerMixedRound && activeCivilians === 1) {
+  if (!isUnchangedStartingThreePlayerMixedRound && activeCivilians === 1) {
     return {
       state: "won",
       winner: "infiltrators",

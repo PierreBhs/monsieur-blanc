@@ -28,6 +28,7 @@ type RoundScreenProps = {
   timerSeconds: number;
   remainingSeconds: number;
   lastElimination: string;
+  selectedElimination: PlayerAssignment | null;
   pendingElimination: PlayerAssignment | null;
   mrWhiteGuess: string;
   gameStatus: GameStatus;
@@ -39,6 +40,7 @@ type RoundScreenProps = {
   onNextPlayer: () => void;
   onStartVote: () => void;
   onSelectElimination: (assignment: PlayerAssignment) => void;
+  onConfirmElimination: () => void;
   onMrWhiteGuessChange: (guess: string) => void;
   onSubmitMrWhiteGuess: () => void;
   onSkipMrWhiteGuess: (assignment: PlayerAssignment) => void;
@@ -63,6 +65,7 @@ export function RoundScreen({
   timerSeconds,
   remainingSeconds,
   lastElimination,
+  selectedElimination,
   pendingElimination,
   mrWhiteGuess,
   gameStatus,
@@ -74,6 +77,7 @@ export function RoundScreen({
   onNextPlayer,
   onStartVote,
   onSelectElimination,
+  onConfirmElimination,
   onMrWhiteGuessChange,
   onSubmitMrWhiteGuess,
   onSkipMrWhiteGuess,
@@ -182,17 +186,24 @@ export function RoundScreen({
             <div className="vote-list">
               {activeAssignments.map((assignment) => (
                 <button
-                  className="vote-row"
+                  aria-pressed={selectedElimination?.player.id === assignment.player.id}
+                  className={`vote-row${selectedElimination?.player.id === assignment.player.id ? " is-selected" : ""}`}
                   key={assignment.player.id}
                   type="button"
                   onClick={() => onSelectElimination(assignment)}
                 >
                   <PlayerAvatar className="player-token" player={assignment.player} />
                   <span>{assignment.player.name}</span>
-                  <span>Eliminate</span>
+                  <span>{selectedElimination?.player.id === assignment.player.id ? "Selected" : "Select"}</span>
                 </button>
               ))}
             </div>
+
+            {selectedElimination && (
+              <button className="primary-button danger-button" type="button" onClick={onConfirmElimination}>
+                Vote out {selectedElimination.player.name}
+              </button>
+            )}
           </div>
         )}
 

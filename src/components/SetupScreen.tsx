@@ -147,7 +147,7 @@ export function SetupScreen({
                     onChange={(event) => onPlayerNameChange(player.id, event.target.value)}
                   />
                   <button
-                    className="icon-button"
+                    className="icon-button remove-player-button"
                     type="button"
                     title={`Remove ${player.name}`}
                     onClick={() => onRemovePlayer(player.id)}

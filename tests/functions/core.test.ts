@@ -212,8 +212,12 @@ describe("evaluateGameStatus", () => {
     });
   });
 
-  it("lets infiltrators win when a round that started with multiple civilians has only 1 civilian left", () => {
-    const round = createRound({ players, counts, deck }, fixedRng);
+  it("lets infiltrators win when only 1 civilian and undercovers remain", () => {
+    const round = createRound({
+      players,
+      counts: { civilian: 3, undercover: 2, mrWhite: 0 },
+      deck,
+    }, fixedRng);
     const eliminatedIds = new Set(
       round.assignments
         .filter((assignment) => assignment.role === "civilian")
@@ -224,6 +228,34 @@ describe("evaluateGameStatus", () => {
     expect(evaluateGameStatus(round.assignments, eliminatedIds)).toMatchObject({
       state: "won",
       winner: "infiltrators",
+    });
+  });
+
+  it("keeps playing when Mr. White remains with more than 1 civilian and no undercovers", () => {
+    const round = createRound({ players, counts, deck }, fixedRng);
+    const eliminatedIds = new Set(
+      round.assignments
+        .filter((assignment) => assignment.role === "undercover")
+        .map((assignment) => assignment.player.id),
+    );
+
+    expect(evaluateGameStatus(round.assignments, eliminatedIds)).toMatchObject({
+      state: "playing",
+    });
+  });
+
+  it("lets Mr. White win when the final 3 players are a civilian, an undercover, and Mr. White", () => {
+    const round = createRound({ players, counts, deck }, fixedRng);
+    const eliminatedIds = new Set(
+      round.assignments
+        .filter((assignment) => assignment.role === "civilian")
+        .slice(0, 2)
+        .map((assignment) => assignment.player.id),
+    );
+
+    expect(evaluateGameStatus(round.assignments, eliminatedIds)).toMatchObject({
+      state: "won",
+      winner: "mrWhite",
     });
   });
 

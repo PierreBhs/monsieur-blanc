@@ -18,7 +18,7 @@
  * same round is reproduced with createRound(..., () => 0) to locate Mr. White.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "../../src/App";
 import { createRound } from "../../src/game/core";
@@ -31,15 +31,22 @@ const seededPlayers: PlayerInput[] = [
   { id: "p3", name: "Cam" },
 ];
 const seededCounts: RoleCounts = { civilian: 1, undercover: 1, mrWhite: 1 };
+const fourPlayerGame: PlayerInput[] = [
+  { id: "p1", name: "Ada" },
+  { id: "p2", name: "Ben" },
+  { id: "p3", name: "Cam" },
+  { id: "p4", name: "Dee" },
+];
+const fourPlayerCounts: RoleCounts = { civilian: 2, undercover: 1, mrWhite: 1 };
 
-function seedNamedGame() {
-  localStorage.setItem("mr-white.players", JSON.stringify(seededPlayers));
-  localStorage.setItem("mr-white.counts", JSON.stringify(seededCounts));
+function seedNamedGame(gamePlayers = seededPlayers, gameCounts = seededCounts) {
+  localStorage.setItem("mr-white.players", JSON.stringify(gamePlayers));
+  localStorage.setItem("mr-white.counts", JSON.stringify(gameCounts));
 }
 
 // Reproduce the exact round App builds under the stubbed RNG (full deck, seed 0).
-function expectedRound() {
-  return createRound({ players: seededPlayers, counts: seededCounts, deck: wordPairs }, () => 0);
+function expectedRound(gamePlayers = seededPlayers, gameCounts = seededCounts) {
+  return createRound({ players: gamePlayers, counts: gameCounts, deck: wordPairs }, () => 0);
 }
 
 async function revealEveryPlayer(user: ReturnType<typeof userEvent.setup>, count: number) {
@@ -150,13 +157,39 @@ describe("App — round flow", () => {
     // Vote out Mr. White -> the final-guess prompt opens.
     const eliminateMrWhite = screen
       .getAllByRole("button")
-      .find((button) => button.textContent?.includes(mrWhiteName) && button.textContent?.includes("Eliminate"));
+      .find((button) => button.textContent?.includes(mrWhiteName) && button.textContent?.includes("Select"));
     await user.click(eliminateMrWhite!);
+    await user.click(screen.getByRole("button", { name: `Vote out ${mrWhiteName}` }));
 
     const guessInput = screen.getByLabelText("Mr. White word guess");
     await user.type(guessInput, round.wordPair.civilian);
     await user.click(screen.getByRole("button", { name: "Submit guess" }));
 
     expect(screen.getByRole("heading", { name: /Mr\. White win/i })).toBeInTheDocument();
+  });
+
+  it("removes players after finishing a game and returning to the menu", async () => {
+    const user = userEvent.setup();
+    seedNamedGame(fourPlayerGame, fourPlayerCounts);
+    const round = expectedRound(fourPlayerGame, fourPlayerCounts);
+    const mrWhiteName = round.assignments.find((a) => a.role === "mrWhite")!.player.name;
+
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Start round" }));
+    await revealEveryPlayer(user, fourPlayerGame.length);
+    await user.click(screen.getByRole("button", { name: "Vote after discussion" }));
+
+    const eliminateMrWhite = screen
+      .getAllByRole("button")
+      .find((button) => button.textContent?.includes(mrWhiteName) && button.textContent?.includes("Select"));
+    await user.click(eliminateMrWhite!);
+    await user.click(screen.getByRole("button", { name: `Vote out ${mrWhiteName}` }));
+    await user.type(screen.getByLabelText("Mr. White word guess"), round.wordPair.civilian);
+    await user.click(screen.getByRole("button", { name: "Submit guess" }));
+    await user.click(screen.getByRole("button", { name: "Back to menu" }));
+
+    await user.click(screen.getByTitle("Remove Ben"));
+
+    await waitFor(() => expect(screen.getAllByPlaceholderText(/^Player \d+$/)).toHaveLength(3));
   });
 });

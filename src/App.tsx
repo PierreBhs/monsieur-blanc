@@ -68,6 +68,7 @@ function App() {
   const [remainingSeconds, setRemainingSeconds] = useState(timerSeconds);
   const [timerRunning, setTimerRunning] = useState(false);
   const [eliminatedIds, setEliminatedIds] = useState<Set<string>>(new Set());
+  const [selectedElimination, setSelectedElimination] = useState<PlayerAssignment | null>(null);
   const [pendingElimination, setPendingElimination] = useState<PlayerAssignment | null>(null);
   const [mrWhiteGuess, setMrWhiteGuess] = useState("");
   const [gameStatus, setGameStatus] = useState<GameStatus>({ state: "playing" });
@@ -195,9 +196,18 @@ function App() {
 
     setLeavingId(id);
     setTimeout(() => {
-      const nextPlayers = players.filter((player) => player.id !== id);
-      updatePlayers(nextPlayers);
-      updateCounts(trimCountsToPlayers(counts, nextPlayers.length));
+      setPlayers((currentPlayers) => {
+        const nextPlayers = currentPlayers.filter((player) => player.id !== id);
+        localStorage.setItem(savedPlayersKey, JSON.stringify(nextPlayers));
+
+        setCounts((currentCounts) => {
+          const nextCounts = trimCountsToPlayers(currentCounts, nextPlayers.length);
+          localStorage.setItem(savedCountsKey, JSON.stringify(nextCounts));
+          return nextCounts;
+        });
+
+        return nextPlayers;
+      });
       setLeavingId(null);
     }, 180);
   }
@@ -281,6 +291,7 @@ function App() {
       setRemainingSeconds(timerSeconds);
       setTimerRunning(false);
       setEliminatedIds(new Set());
+      setSelectedElimination(null);
       setPendingElimination(null);
       setMrWhiteGuess("");
       setGameStatus({ state: "playing" });
@@ -314,20 +325,30 @@ function App() {
 
   function startVote() {
     setTimerRunning(false);
+    setSelectedElimination(null);
     setPhase("vote");
   }
 
   function selectElimination(assignment: PlayerAssignment) {
     setLastElimination("");
+    setSelectedElimination(assignment);
+  }
 
-    if (assignment.role === "mrWhite") {
-      setPendingElimination(assignment);
+  function confirmElimination() {
+    if (!selectedElimination) {
+      return;
+    }
+
+    setSelectedElimination(null);
+
+    if (selectedElimination.role === "mrWhite") {
+      setPendingElimination(selectedElimination);
       setMrWhiteGuess("");
       setPhase("mrWhiteGuess");
       return;
     }
 
-    finishElimination(assignment);
+    finishElimination(selectedElimination);
   }
 
   function submitMrWhiteGuess() {
@@ -360,6 +381,7 @@ function App() {
     const nextStatus = evaluateGameStatus(round.assignments, nextEliminatedIds);
 
     setEliminatedIds(nextEliminatedIds);
+    setSelectedElimination(null);
     setPendingElimination(assignment);
     setMrWhiteGuess("");
     setGameStatus(nextStatus);
@@ -407,11 +429,15 @@ function App() {
     setRemainingSeconds(timerSeconds);
     setTimerRunning(false);
     setEliminatedIds(new Set());
+    setSelectedElimination(null);
     setPendingElimination(null);
     setMrWhiteGuess("");
     setGameStatus({ state: "playing" });
     setLastElimination("");
     setError("");
+    setLeavingId(null);
+    setDraggingPlayerId(null);
+    setDropTargetPlayerId(null);
   }
 
   if (round) {
@@ -431,6 +457,7 @@ function App() {
         timerSeconds={timerSeconds}
         remainingSeconds={remainingSeconds}
         lastElimination={lastElimination}
+        selectedElimination={selectedElimination}
         pendingElimination={pendingElimination}
         mrWhiteGuess={mrWhiteGuess}
         gameStatus={gameStatus}
@@ -442,6 +469,7 @@ function App() {
         onNextPlayer={goToNextPlayer}
         onStartVote={startVote}
         onSelectElimination={selectElimination}
+        onConfirmElimination={confirmElimination}
         onMrWhiteGuessChange={setMrWhiteGuess}
         onSubmitMrWhiteGuess={submitMrWhiteGuess}
         onSkipMrWhiteGuess={finishElimination}
