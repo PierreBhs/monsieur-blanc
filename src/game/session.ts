@@ -1,4 +1,9 @@
-import type { GameStatus, GameWinner, PlayerAssignment } from "./types";
+import type { GameStatus, GameWinner, PlayerAssignment, PlayerInput, Role } from "./types";
+
+export type PlayerRoundScore = {
+  name: string;
+  points: number;
+};
 
 export type RoundHistoryEntry = {
   id: string;
@@ -7,10 +12,12 @@ export type RoundHistoryEntry = {
   reason: string;
   word: string;
   winners: string[];
+  scores: PlayerRoundScore[];
 };
 
 export type PlayerScore = {
   name: string;
+  points: number;
   wins: number;
 };
 
@@ -38,6 +45,7 @@ export function createRoundHistoryEntry(
     reason: status.reason,
     word: assignments.find((assignment) => assignment.role === "civilian")?.word ?? "",
     winners: winningPlayerNames(assignments, status.winner),
+    scores: winningScores(assignments, status.winner),
   };
 }
 
@@ -49,25 +57,46 @@ export function appendRoundHistory(
   return [entry, ...history].slice(0, limit);
 }
 
-export function calculateSessionStats(history: RoundHistoryEntry[]): SessionStats {
-  const playerWins = new Map<string, number>();
+export function calculateSessionStats(history: RoundHistoryEntry[], players: PlayerInput[] = []): SessionStats {
+  const playerScores = new Map<string, { points: number; wins: number; order: number }>();
   const wins = { ...emptyWins };
+
+  players.forEach((player, order) => {
+    const name = player.name.trim();
+    if (name) {
+      playerScores.set(name, { points: 0, wins: 0, order });
+    }
+  });
 
   for (const entry of history) {
     wins[entry.winner] += 1;
 
-    for (const name of entry.winners) {
-      playerWins.set(name, (playerWins.get(name) ?? 0) + 1);
+    for (const score of roundScores(entry)) {
+      const previous = playerScores.get(score.name) ?? { points: 0, wins: 0, order: playerScores.size };
+      playerScores.set(score.name, {
+        ...previous,
+        points: previous.points + score.points,
+        wins: previous.wins + 1,
+      });
     }
   }
 
   return {
     roundsPlayed: history.length,
     wins,
-    players: Array.from(playerWins.entries())
-      .map(([name, playerWins]) => ({ name, wins: playerWins }))
-      .sort((left, right) => right.wins - left.wins || left.name.localeCompare(right.name)),
+    players: Array.from(playerScores.entries())
+      .map(([name, score]) => ({ name, points: score.points, wins: score.wins, order: score.order }))
+      .sort((left, right) => right.points - left.points || right.wins - left.wins || left.order - right.order)
+      .map(({ name, points, wins }) => ({ name, points, wins })),
   };
+}
+
+function roundScores(entry: RoundHistoryEntry): PlayerRoundScore[] {
+  if (entry.scores) {
+    return entry.scores;
+  }
+
+  return entry.winners.map((name) => ({ name, points: 1 }));
 }
 
 function winningPlayerNames(assignments: PlayerAssignment[], winner: GameWinner): string[] {
@@ -84,4 +113,29 @@ function winningPlayerNames(assignments: PlayerAssignment[], winner: GameWinner)
       return assignment.role === "undercover" || assignment.role === "mrWhite";
     })
     .map((assignment) => assignment.player.name);
+}
+
+function winningScores(assignments: PlayerAssignment[], winner: GameWinner): PlayerRoundScore[] {
+  return assignments
+    .map((assignment) => ({
+      name: assignment.player.name,
+      points: pointsForRole(assignment.role, winner),
+    }))
+    .filter((score) => score.points > 0);
+}
+
+function pointsForRole(role: Role, winner: GameWinner): number {
+  if (winner === "civilians") {
+    return role === "civilian" ? 2 : 0;
+  }
+
+  if (winner === "mrWhite") {
+    return role === "mrWhite" ? 6 : 0;
+  }
+
+  if (role === "undercover") {
+    return 10;
+  }
+
+  return role === "mrWhite" ? 6 : 0;
 }

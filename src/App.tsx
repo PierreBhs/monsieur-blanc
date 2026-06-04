@@ -93,7 +93,7 @@ function App() {
     const categories = new Set(filteredWordPairs.map((pair) => pair.category));
     return `${filteredWordPairs.length} pairs across ${categories.size} categories`;
   }, [filteredWordPairs]);
-  const sessionStats = useMemo(() => calculateSessionStats(roundHistory), [roundHistory]);
+  const sessionStats = useMemo(() => calculateSessionStats(roundHistory, players), [roundHistory, players]);
 
   useEffect(() => {
     if (phase !== "turn" || !timerEnabled || !timerRunning || remainingSeconds <= 0) {
@@ -434,7 +434,10 @@ function App() {
         pendingElimination={pendingElimination}
         mrWhiteGuess={mrWhiteGuess}
         gameStatus={gameStatus}
+        roundHistory={roundHistory}
+        sessionStats={sessionStats}
         onBackToSetup={resetRound}
+        onContinuePlaying={startRound}
         onReveal={() => setIsRevealed(true)}
         onNextPlayer={goToNextPlayer}
         onStartVote={startVote}

@@ -191,6 +191,12 @@ h2 {
   background: #d7f0ff;
 }
 
+.scoreboard-panel {
+  width: 100%;
+  margin-top: 0;
+  text-align: left;
+}
+
 .panel-heading,
 .top-bar,
 .phase-band {
@@ -920,28 +926,52 @@ select:focus {
 }
 
 .leader-list {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   margin-bottom: 14px;
 }
 
 .leader-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   min-width: 0;
   padding: 10px 12px;
+  box-shadow: 3px 3px 0 var(--accent);
 }
 
-.leader-row span,
+.leader-rank {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--border);
+  border-radius: 8px;
+  background: var(--warning);
+  font-weight: 900;
+}
+
+.leader-row > span:not(.leader-rank),
 .history-row strong,
 .history-row small {
   overflow-wrap: anywhere;
 }
 
-.leader-row span,
+.leader-row > span:not(.leader-rank),
 .history-row strong {
   font-weight: 900;
+}
+
+.leader-row strong {
+  font-size: 1.7rem;
+  line-height: 1;
+  text-shadow: 2px 2px 0 #c9f4db;
+}
+
+.leader-row small {
+  grid-column: 2 / 4;
+  color: var(--muted);
+  font-weight: 800;
 }
 
 .history-list {

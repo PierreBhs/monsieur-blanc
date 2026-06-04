@@ -199,7 +199,9 @@ export function TimerSetting({ seconds, onMinus, onPlus }: TimerSettingProps) {
 type SessionSummaryProps = {
   history: RoundHistoryEntry[];
   stats: SessionStats;
-  onClear: () => void;
+  onClear?: () => void;
+  title?: string;
+  framed?: boolean;
 };
 
 type DeckFilterControlsProps = {
@@ -251,48 +253,52 @@ export function DeckFilterControls({
   );
 }
 
-export function SessionSummary({ history, stats, onClear }: SessionSummaryProps) {
+export function SessionSummary({ history, stats, onClear, title = "Session", framed = true }: SessionSummaryProps) {
+  const hasPlayers = stats.players.length > 0;
+
   return (
-    <section className="panel session-panel">
+    <section className={`${framed ? "panel " : ""}session-panel${framed ? "" : " scoreboard-panel"}`}>
       <div className="panel-heading">
-        <h2>Session</h2>
-        {history.length > 0 && (
+        <h2>{title}</h2>
+        {history.length > 0 && onClear && (
           <button className="secondary-button compact-button" type="button" onClick={onClear}>
             Clear
           </button>
         )}
       </div>
 
-      {history.length === 0 ? (
-        <p className="muted-text">No completed rounds yet.</p>
+      <div className="session-totals">
+        <SessionTotal label="Rounds" value={stats.roundsPlayed} />
+        <SessionTotal label="Civilians" value={stats.wins.civilians} />
+        <SessionTotal label="Infiltrators" value={stats.wins.infiltrators} />
+        <SessionTotal label="Mr. White" value={stats.wins.mrWhite} />
+      </div>
+
+      {hasPlayers ? (
+        <div className="leader-list">
+          {stats.players.map((player, index) => (
+            <div className="leader-row" key={player.name}>
+              <span className="leader-rank">{index + 1}</span>
+              <span>{player.name}</span>
+              <strong>{player.points} pts</strong>
+              <small>{player.wins === 1 ? "1 win" : `${player.wins} wins`}</small>
+            </div>
+          ))}
+        </div>
       ) : (
-        <>
-          <div className="session-totals">
-            <SessionTotal label="Rounds" value={stats.roundsPlayed} />
-            <SessionTotal label="Civilians" value={stats.wins.civilians} />
-            <SessionTotal label="Infiltrators" value={stats.wins.infiltrators} />
-            <SessionTotal label="Mr. White" value={stats.wins.mrWhite} />
-          </div>
+        <p className="muted-text">Add players to start the ranking.</p>
+      )}
 
-          <div className="leader-list">
-            {stats.players.slice(0, 5).map((player) => (
-              <div className="leader-row" key={player.name}>
-                <span>{player.name}</span>
-                <strong>{player.wins}</strong>
-              </div>
-            ))}
-          </div>
-
-          <div className="history-list">
-            {history.slice(0, 4).map((entry) => (
-              <div className="history-row" key={entry.id}>
-                <span>{winnerLabel(entry.winner)}</span>
-                <strong>{entry.word || "No word"}</strong>
-                <small>{entry.winners.join(", ")}</small>
-              </div>
-            ))}
-          </div>
-        </>
+      {history.length > 0 && (
+        <div className="history-list">
+          {history.slice(0, 4).map((entry) => (
+            <div className="history-row" key={entry.id}>
+              <span>{winnerLabel(entry.winner)}</span>
+              <strong>{entry.word || "No word"}</strong>
+              <small>{entry.winners.join(", ")}</small>
+            </div>
+          ))}
+        </div>
       )}
     </section>
   );

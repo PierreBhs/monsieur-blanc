@@ -26,6 +26,10 @@ describe("createRoundHistoryEntry", () => {
       winner: "civilians",
       word: "France",
       winners: ["Ada", "Ben"],
+      scores: [
+        { name: "Ada", points: 2 },
+        { name: "Ben", points: 2 },
+      ],
     });
   });
 
@@ -37,6 +41,20 @@ describe("createRoundHistoryEntry", () => {
     );
 
     expect(entry.winners).toEqual(["Dee"]);
+    expect(entry.scores).toEqual([{ name: "Dee", points: 6 }]);
+  });
+
+  it("awards undercover and Mr. White points for an infiltrator win", () => {
+    const entry = createRoundHistoryEntry(
+      assignments,
+      { state: "won", winner: "infiltrators", reason: "Only 1 civilian remains." },
+      "2026-06-04T12:00:00.000Z",
+    );
+
+    expect(entry.scores).toEqual([
+      { name: "Cam", points: 10 },
+      { name: "Dee", points: 6 },
+    ]);
   });
 });
 
@@ -49,18 +67,44 @@ describe("appendRoundHistory", () => {
 });
 
 describe("calculateSessionStats", () => {
-  it("counts team wins and ranks player wins", () => {
-    const stats = calculateSessionStats([
-      { ...historyEntry("1"), winner: "civilians", winners: ["Ada", "Ben"] },
-      { ...historyEntry("2"), winner: "mrWhite", winners: ["Dee"] },
-      { ...historyEntry("3"), winner: "civilians", winners: ["Ada", "Ben"] },
-    ]);
+  it("counts team wins and ranks all players by points", () => {
+    const stats = calculateSessionStats(
+      [
+        {
+          ...historyEntry("1"),
+          winner: "civilians",
+          winners: ["Ada", "Ben"],
+          scores: [
+            { name: "Ada", points: 2 },
+            { name: "Ben", points: 2 },
+          ],
+        },
+        { ...historyEntry("2"), winner: "mrWhite", winners: ["Dee"], scores: [{ name: "Dee", points: 6 }] },
+        {
+          ...historyEntry("3"),
+          winner: "civilians",
+          winners: ["Ada", "Ben"],
+          scores: [
+            { name: "Ada", points: 2 },
+            { name: "Ben", points: 2 },
+          ],
+        },
+      ],
+      [
+        { id: "1", name: "Ada" },
+        { id: "2", name: "Ben" },
+        { id: "3", name: "Cam" },
+        { id: "4", name: "Dee" },
+      ],
+    );
 
     expect(stats.roundsPlayed).toBe(3);
     expect(stats.wins).toEqual({ civilians: 2, infiltrators: 0, mrWhite: 1 });
-    expect(stats.players.slice(0, 2)).toEqual([
-      { name: "Ada", wins: 2 },
-      { name: "Ben", wins: 2 },
+    expect(stats.players).toEqual([
+      { name: "Dee", points: 6, wins: 1 },
+      { name: "Ada", points: 4, wins: 2 },
+      { name: "Ben", points: 4, wins: 2 },
+      { name: "Cam", points: 0, wins: 0 },
     ]);
   });
 });
@@ -73,5 +117,9 @@ function historyEntry(id: string): RoundHistoryEntry {
     reason: "Only 1 civilian remains.",
     word: "France",
     winners: ["Cam", "Dee"],
+    scores: [
+      { name: "Cam", points: 10 },
+      { name: "Dee", points: 6 },
+    ],
   };
 }

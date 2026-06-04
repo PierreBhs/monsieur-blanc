@@ -1,5 +1,6 @@
 import { WordHelp } from "../WordHelp";
 import type { PlayPhase } from "../game/playPhase";
+import type { RoundHistoryEntry, SessionStats } from "../game/session";
 import type { GameStatus, PlayerAssignment, Round } from "../game/types";
 import {
   DiscussionTimer,
@@ -7,6 +8,7 @@ import {
   PlayerAvatar,
   PlayerSpotlight,
   PlayerStrip,
+  SessionSummary,
   roleLabel,
   winnerLabel,
 } from "./gameUi";
@@ -29,7 +31,10 @@ type RoundScreenProps = {
   pendingElimination: PlayerAssignment | null;
   mrWhiteGuess: string;
   gameStatus: GameStatus;
+  roundHistory: RoundHistoryEntry[];
+  sessionStats: SessionStats;
   onBackToSetup: () => void;
+  onContinuePlaying: () => void;
   onReveal: () => void;
   onNextPlayer: () => void;
   onStartVote: () => void;
@@ -61,7 +66,10 @@ export function RoundScreen({
   pendingElimination,
   mrWhiteGuess,
   gameStatus,
+  roundHistory,
+  sessionStats,
   onBackToSetup,
+  onContinuePlaying,
   onReveal,
   onNextPlayer,
   onStartVote,
@@ -77,12 +85,14 @@ export function RoundScreen({
   return (
     <main key="round" className="app-shell">
       <section className="round-layout">
-        <div className="top-bar">
-          <button className="secondary-button" type="button" onClick={onBackToSetup}>
-            Back to setup
-          </button>
-          <span>{activeAssignments.length} active</span>
-        </div>
+        {phase !== "gameOver" && (
+          <div className="top-bar">
+            <button className="secondary-button" type="button" onClick={onBackToSetup}>
+              Back to setup
+            </button>
+            <span>{activeAssignments.length} active</span>
+          </div>
+        )}
 
         <PlayerStrip assignments={round.assignments} eliminatedIds={eliminatedIds} turnStarterId={turnStarter?.player.id} />
 
@@ -258,9 +268,16 @@ export function RoundScreen({
               ))}
             </div>
 
-            <button className="primary-button" type="button" onClick={onBackToSetup}>
-              New round
-            </button>
+            <SessionSummary history={roundHistory} stats={sessionStats} title="Scoreboard" framed={false} />
+
+            <div className="button-row">
+              <button className="primary-button" type="button" onClick={onContinuePlaying}>
+                Continue playing
+              </button>
+              <button className="secondary-button" type="button" onClick={onBackToSetup}>
+                Back to menu
+              </button>
+            </div>
           </div>
         )}
       </section>
