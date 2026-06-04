@@ -713,6 +713,77 @@ select:focus {
   color: #b01645;
 }
 
+.bonus-band {
+  background: #c9f4db;
+  border-color: var(--primary);
+}
+
+.bonus-band strong {
+  color: #0f6b3f;
+}
+
+.elimination-card.has-undercover-bonus {
+  border-color: var(--primary);
+  box-shadow: 6px 6px 0 var(--primary);
+}
+
+.undercover-bonus-banner {
+  display: grid;
+  gap: 8px;
+  width: min(560px, 100%);
+  margin: 0 auto;
+  padding: 20px 18px;
+  border: 3px solid var(--primary);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #e8fff1 0%, #c9f4db 100%);
+  box-shadow: 5px 5px 0 var(--primary);
+  animation: bonus-pop 0.45s ease-out;
+}
+
+.undercover-bonus-kicker {
+  margin: 0;
+  color: #0f6b3f;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.undercover-bonus-points {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(2.4rem, 12vw, 3.6rem);
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 3px 3px 0 #fff;
+}
+
+.undercover-bonus-copy {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.undercover-bonus-copy strong {
+  color: var(--text);
+}
+
+@keyframes bonus-pop {
+  0% {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+
+  70% {
+    transform: scale(1.03);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .player-spotlight,
 .starter-layout {
   display: grid;
