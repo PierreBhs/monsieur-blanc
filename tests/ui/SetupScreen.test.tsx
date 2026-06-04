@@ -150,6 +150,12 @@ describe("SetupScreen", () => {
     expect(container.querySelectorAll(".player-insert-marker")).toHaveLength(1);
   });
 
+  it("hides the insertion marker when no meaningful drop position is selected", () => {
+    const { container } = render(<SetupScreen {...makeProps({ draggingPlayerId: "1", dropInsertionIndex: null })} />);
+
+    expect(container.querySelector(".player-insert-marker")).toBeNull();
+  });
+
   it("wires player reordering through pointer events", () => {
     const onPlayerDragStart = vi.fn();
     const onPlayerDragMove = vi.fn();

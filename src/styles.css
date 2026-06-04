@@ -77,6 +77,17 @@ button {
   }
 }
 
+@keyframes marker-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
 .setup-layout,
 .round-layout {
   width: min(1080px, 100%);
@@ -231,18 +242,21 @@ h2 {
   align-items: center;
   gap: 10px;
   animation: page-in 0.18s ease-out both;
-  transition: opacity 0.12s ease-out, scale 0.12s ease-out;
+  transform-origin: center;
+  transition: opacity 0.12s ease-out, scale 0.12s ease-out, translate 0.12s ease-out;
 }
 
 .player-row.is-dragging {
-  opacity: 0.58;
-  scale: 0.98;
+  opacity: 0.68;
+  scale: 0.99;
+  translate: 2px 0;
 }
 
 .player-insert-marker {
   position: relative;
   height: 12px;
   margin: -2px 0;
+  animation: marker-in 0.1s ease-out;
 }
 
 .player-insert-marker::before {
@@ -276,6 +290,8 @@ h2 {
 }
 
 .drag-handle {
+  display: grid;
+  place-items: center;
   width: 44px;
   height: 44px;
   border: 3px solid var(--border);
@@ -292,12 +308,24 @@ h2 {
   -webkit-user-select: none;
 }
 
+.drag-grip {
+  width: 18px;
+  height: 16px;
+  background:
+    linear-gradient(var(--muted), var(--muted)) 0 0 / 18px 3px no-repeat,
+    linear-gradient(var(--muted), var(--muted)) 0 6px / 18px 3px no-repeat,
+    linear-gradient(var(--muted), var(--muted)) 0 12px / 18px 3px no-repeat;
+}
+
 .drag-handle:hover {
   background: #ffef9a;
 }
 
 .drag-handle:active {
+  background: #ffef9a;
   cursor: grabbing;
+  translate: 2px 2px;
+  box-shadow: 1px 1px 0 var(--border);
 }
 
 .player-token,

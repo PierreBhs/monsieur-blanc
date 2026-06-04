@@ -131,7 +131,7 @@ export function SetupScreen({
                       onPointerMove={onPlayerDragMove}
                       onPointerUp={onPlayerDragEnd}
                     >
-                      ::
+                      <span aria-hidden="true" className="drag-grip" />
                     </button>
                     <PlayerAvatar
                       className="player-token"

@@ -245,7 +245,7 @@ function App() {
 
   function startPlayerDrag(id: string, event: PointerEvent<HTMLButtonElement>) {
     setDraggingPlayerId(id);
-    setDropInsertionIndex(players.findIndex((player) => player.id === id));
+    setDropInsertionIndex(null);
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
   }
@@ -256,7 +256,14 @@ function App() {
     }
 
     event.preventDefault();
-    setDropInsertionIndex(playerInsertionIndexFromPoint(event.clientY, draggingPlayerId, players));
+    const nextInsertionIndex = meaningfulPlayerInsertionIndex(
+      playerInsertionIndexFromPoint(event.clientY, draggingPlayerId, players),
+      draggingPlayerId,
+      players,
+    );
+    setDropInsertionIndex((currentInsertionIndex) =>
+      currentInsertionIndex === nextInsertionIndex ? currentInsertionIndex : nextInsertionIndex,
+    );
   }
 
   function finishPlayerDrag(event?: PointerEvent<HTMLButtonElement>) {
@@ -708,6 +715,16 @@ function playerInsertionIndexFromPoint(clientY: number, draggedId: string, playe
   }
 
   return players.length;
+}
+
+function meaningfulPlayerInsertionIndex(rawInsertionIndex: number, draggedId: string, players: PlayerInput[]): number | null {
+  const draggedIndex = players.findIndex((player) => player.id === draggedId);
+
+  if (draggedIndex === -1) {
+    return null;
+  }
+
+  return rawInsertionIndex === draggedIndex || rawInsertionIndex === draggedIndex + 1 ? null : rawInsertionIndex;
 }
 
 export default App;
