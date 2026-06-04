@@ -5,6 +5,7 @@ import { roleTotal } from "./components/gameUi";
 import {
   allCategories,
   anyDifficulty,
+  categoryGroupLabel,
   deckCategoryOptions,
   filterWordPairs,
   type DifficultyFilter,
@@ -91,7 +92,7 @@ function App() {
   const deckEmpty = filteredWordPairs.length === 0;
 
   const deckStats = useMemo(() => {
-    const categories = new Set(filteredWordPairs.map((pair) => pair.category));
+    const categories = new Set(filteredWordPairs.map((pair) => categoryGroupLabel(pair.category)));
     return `${filteredWordPairs.length} pairs across ${categories.size} categories`;
   }, [filteredWordPairs]);
   const sessionStats = useMemo(() => calculateSessionStats(roundHistory, players), [roundHistory, players]);
