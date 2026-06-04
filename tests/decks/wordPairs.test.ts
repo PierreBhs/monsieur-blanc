@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { wordPairs } from "./wordPairs";
+import { wordPairs } from "../../src/decks/wordPairs";
 
 describe("wordPairs", () => {
   it("exports decoded word pairs", () => {

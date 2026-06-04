@@ -4,8 +4,8 @@ import {
   createRound,
   evaluateGameStatus,
   isCorrectMrWhiteGuess,
-} from "./core";
-import type { PlayerInput, RoleCounts, WordPair } from "./types";
+} from "../../src/game/core";
+import type { PlayerInput, RoleCounts, WordPair } from "../../src/game/types";
 
 const players: PlayerInput[] = [
   { id: "1", name: "Ada" },
@@ -70,6 +70,32 @@ describe("createRound", () => {
   it("rejects an empty deck", () => {
     expect(() => createRound({ players, counts, deck: [] })).toThrow("empty");
   });
+
+  it("rejects a game with no civilians", () => {
+    expect(() =>
+      createRound({ players, counts: { civilian: 0, undercover: 3, mrWhite: 2 }, deck }),
+    ).toThrow("at least 1 civilian");
+  });
+
+  it("rejects a game with no undercovers", () => {
+    expect(() =>
+      createRound({ players, counts: { civilian: 3, undercover: 0, mrWhite: 2 }, deck }),
+    ).toThrow("at least 1 undercover");
+  });
+
+  it("rejects duplicate player names, ignoring case and surrounding spaces", () => {
+    const duplicateNamePlayers: PlayerInput[] = [
+      { id: "1", name: "Ada" },
+      { id: "2", name: "Ben" },
+      { id: "3", name: "Cam" },
+      { id: "4", name: "Dee" },
+      { id: "5", name: " ada " },
+    ];
+
+    expect(() => createRound({ players: duplicateNamePlayers, counts, deck })).toThrow(
+      "unique name",
+    );
+  });
 });
 
 describe("evaluateGameStatus", () => {
@@ -89,8 +115,8 @@ describe("evaluateGameStatus", () => {
 
   it("keeps playing when infiltrators reach parity with multiple civilians", () => {
     const round = createRound({
-      players: players.slice(0, 4),
-      counts: { civilian: 2, undercover: 2, mrWhite: 0 },
+      players,
+      counts: { civilian: 2, undercover: 2, mrWhite: 1 },
       deck,
     }, fixedRng);
 

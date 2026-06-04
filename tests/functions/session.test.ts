@@ -4,8 +4,8 @@ import {
   calculateSessionStats,
   createRoundHistoryEntry,
   type RoundHistoryEntry,
-} from "./session";
-import type { PlayerAssignment } from "./types";
+} from "../../src/game/session";
+import type { PlayerAssignment } from "../../src/game/types";
 
 const assignments: PlayerAssignment[] = [
   { player: { id: "1", name: "Ada" }, role: "civilian", word: "France" },

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { canUseServiceWorker, registerServiceWorker } from "./pwa";
+import { canUseServiceWorker, registerServiceWorker } from "../../src/pwa";
 
 describe("canUseServiceWorker", () => {
   it("detects service worker support", () => {

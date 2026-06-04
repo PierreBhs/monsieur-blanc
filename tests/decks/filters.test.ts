@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { allCategories, anyDifficulty, deckCategoryOptions, filterWordPairs, wordPairDifficulty } from "./filters";
-import type { WordPair } from "../game/types";
+import { allCategories, anyDifficulty, deckCategoryOptions, filterWordPairs, wordPairDifficulty } from "../../src/decks/filters";
+import type { WordPair } from "../../src/game/types";
 
 const deck: WordPair[] = [
   { id: "france-italy", category: "countries", civilian: "France", undercover: "Italy" },
