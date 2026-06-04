@@ -89,8 +89,9 @@ export function evaluateGameStatus(assignments: PlayerAssignment[], eliminatedId
   const activeCivilians = activeAssignments.filter((assignment) => assignment.role === "civilian").length;
   const activeUndercovers = activeAssignments.filter((assignment) => assignment.role === "undercover").length;
   const activeMrWhites = activeAssignments.filter((assignment) => assignment.role === "mrWhite").length;
+  const activeInfiltrators = activeUndercovers + activeMrWhites;
 
-  if (activeUndercovers === 0 && activeMrWhites === 0) {
+  if (activeInfiltrators === 0) {
     return {
       state: "won",
       winner: "civilians",
@@ -98,19 +99,11 @@ export function evaluateGameStatus(assignments: PlayerAssignment[], eliminatedId
     };
   }
 
-  if (activeUndercovers > 0 && activeUndercovers >= activeCivilians) {
+  if (activeCivilians <= 1) {
     return {
       state: "won",
-      winner: "undercovers",
-      reason: "Undercovers reached parity with civilians.",
-    };
-  }
-
-  if (activeMrWhites > 0 && activeCivilians === 0) {
-    return {
-      state: "won",
-      winner: "mrWhite",
-      reason: "Mr. White survived after the civilians were eliminated.",
+      winner: "infiltrators",
+      reason: activeCivilians === 1 ? "Only 1 civilian remains." : "No civilians remain.",
     };
   }
 

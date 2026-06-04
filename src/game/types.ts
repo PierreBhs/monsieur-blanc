@@ -32,7 +32,7 @@ export type Round = {
   assignments: PlayerAssignment[];
 };
 
-export type GameWinner = "civilians" | "undercovers" | "mrWhite";
+export type GameWinner = "civilians" | "infiltrators" | "mrWhite";
 
 export type GameStatus =
   | {

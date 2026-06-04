@@ -869,7 +869,7 @@ function winnerLabel(winner: Exclude<GameStatus, { state: "playing" }>["winner"]
     return "Mr. White";
   }
 
-  return winner === "undercovers" ? "Undercovers" : "Civilians";
+  return winner === "infiltrators" ? "Infiltrators" : "Civilians";
 }
 
 function formatTimer(seconds: number): string {
