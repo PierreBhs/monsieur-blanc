@@ -13,9 +13,11 @@ import {
 import { wordPairs } from "./decks/wordPairs";
 import {
   chooseRandomActiveAssignment,
+  createPlayerAssignment,
   createRound,
   evaluateGameStatus,
   isCorrectMrWhiteGuess,
+  pickRandomRole,
 } from "./game/core";
 import type { PlayPhase } from "./game/playPhase";
 import {
@@ -80,6 +82,8 @@ function App() {
   const [roundHistory, setRoundHistory] = useState<RoundHistoryEntry[]>(loadRoundHistory);
   const [lastElimination, setLastElimination] = useState("");
   const [lastUndercoverBonusPoints, setLastUndercoverBonusPoints] = useState(0);
+  const [resumePhase, setResumePhase] = useState<PlayPhase>("turn");
+  const [addPlayerName, setAddPlayerName] = useState("");
   const [error, setError] = useState("");
   const [leavingId, setLeavingId] = useState<string | null>(null);
   const [draggingPlayerId, setDraggingPlayerId] = useState<string | null>(null);
@@ -352,6 +356,71 @@ function App() {
     setPhase("vote");
   }
 
+  function clearPendingRoundActions() {
+    setSelectedElimination(null);
+    setPendingElimination(null);
+    setMrWhiteGuess("");
+    setUndercoverGuess("");
+    setLastUndercoverBonusPoints(0);
+    setTimerRunning(false);
+  }
+
+  function openAddPlayer() {
+    if (!round || phase === "gameOver") {
+      return;
+    }
+
+    setResumePhase(phase);
+    setAddPlayerName("");
+    setError("");
+    clearPendingRoundActions();
+    setPhase("addPlayer");
+  }
+
+  function cancelAddPlayer() {
+    setAddPlayerName("");
+    setError("");
+    setPhase(resumePhase);
+  }
+
+  function confirmAddPlayer() {
+    if (!round) {
+      return;
+    }
+
+    const trimmedName = addPlayerName.trim();
+    if (trimmedName.length === 0) {
+      setError("Every player needs a name.");
+      return;
+    }
+
+    const normalizedName = trimmedName.toLocaleLowerCase();
+    const nameTaken = [...players, ...round.assignments.map((assignment) => assignment.player)].some(
+      (player) => player.name.trim().toLocaleLowerCase() === normalizedName,
+    );
+
+    if (nameTaken) {
+      setError("Every player needs a unique name.");
+      return;
+    }
+
+    const newPlayer: PlayerInput = { id: crypto.randomUUID(), name: trimmedName };
+    const role = pickRandomRole();
+    const newAssignment = createPlayerAssignment(newPlayer, role, round.wordPair);
+    const nextAssignments = [...round.assignments, newAssignment];
+
+    updatePlayers([...players, newPlayer]);
+    updateCounts({ ...counts, [role]: counts[role] + 1 });
+    setRound({ ...round, assignments: nextAssignments });
+    setActiveIndex(nextAssignments.length - 1);
+    setIsRevealed(false);
+    setGameStatus(evaluateGameStatus(nextAssignments, eliminatedIds));
+    setAddPlayerName("");
+    setError("");
+    clearPendingRoundActions();
+    setPhase("reveal");
+  }
+
   function selectElimination(assignment: PlayerAssignment) {
     setLastElimination("");
     setSelectedElimination(assignment);
@@ -530,6 +599,12 @@ function App() {
         onSubmitUndercoverGuess={submitUndercoverGuess}
         onSkipUndercoverGuess={finishElimination}
         onContinueAfterElimination={continueAfterElimination}
+        addPlayerName={addPlayerName}
+        roundError={error}
+        onOpenAddPlayer={openAddPlayer}
+        onCancelAddPlayer={cancelAddPlayer}
+        onAddPlayerNameChange={setAddPlayerName}
+        onConfirmAddPlayer={confirmAddPlayer}
         onTimerPause={() => setTimerRunning(false)}
         onTimerReset={() => {
           setRemainingSeconds(timerSeconds);

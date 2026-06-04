@@ -53,6 +53,8 @@ function makeProps(overrides: Partial<ComponentProps<typeof RoundScreen>> = {}) 
     pendingElimination: null,
     mrWhiteGuess: "",
     undercoverGuess: "",
+    addPlayerName: "",
+    roundError: "",
     gameStatus: { state: "playing" },
     roundHistory: [],
     sessionStats: { roundsPlayed: 0, wins: { civilians: 0, infiltrators: 0, mrWhite: 0 }, players: [] },
@@ -69,6 +71,10 @@ function makeProps(overrides: Partial<ComponentProps<typeof RoundScreen>> = {}) 
     onUndercoverGuessChange: vi.fn(),
     onSubmitUndercoverGuess: vi.fn(),
     onSkipUndercoverGuess: vi.fn(),
+    onOpenAddPlayer: vi.fn(),
+    onCancelAddPlayer: vi.fn(),
+    onAddPlayerNameChange: vi.fn(),
+    onConfirmAddPlayer: vi.fn(),
     onContinueAfterElimination: vi.fn(),
     onTimerPause: vi.fn(),
     onTimerReset: vi.fn(),
@@ -168,6 +174,39 @@ describe("RoundScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Skip guess" }));
     expect(onSkipMrWhiteGuess).toHaveBeenCalledWith(assignments[2]);
+  });
+
+  it("addPlayer phase wires name and confirm actions", async () => {
+    const user = userEvent.setup();
+    const onAddPlayerNameChange = vi.fn();
+    const onConfirmAddPlayer = vi.fn();
+    const onCancelAddPlayer = vi.fn();
+    render(
+      <RoundScreen
+        {...makeProps({
+          phase: "addPlayer",
+          onAddPlayerNameChange,
+          onConfirmAddPlayer,
+          onCancelAddPlayer,
+        })}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("New player name"), "Eve");
+    expect(onAddPlayerNameChange).toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Add and reveal" }));
+    expect(onConfirmAddPlayer).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancelAddPlayer).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the add-player control while the round is still playing", () => {
+    const onOpenAddPlayer = vi.fn();
+    render(<RoundScreen {...makeProps({ phase: "turn", onOpenAddPlayer })} />);
+
+    expect(screen.getByRole("button", { name: "Add player" })).toBeInTheDocument();
   });
 
   it("undercoverGuess phase wires the guess input to submit and skip", async () => {

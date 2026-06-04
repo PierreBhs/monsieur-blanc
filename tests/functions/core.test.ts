@@ -19,9 +19,11 @@ import { describe, expect, it } from "vitest";
 import {
   assignRoles,
   chooseRandomActiveAssignment,
+  createPlayerAssignment,
   createRound,
   evaluateGameStatus,
   isCorrectMrWhiteGuess,
+  pickRandomRole,
   selectWordPair,
 } from "../../src/game/core";
 import type { PlayerInput, RoleCounts, WordPair } from "../../src/game/types";
@@ -74,6 +76,16 @@ describe("createRound", () => {
     const mrWhite = round.assignments.find((assignment) => assignment.role === "mrWhite");
 
     expect(mrWhite?.word).toBeUndefined();
+  });
+
+  it("builds a mid-round assignment from the current word pair", () => {
+    const assignment = createPlayerAssignment({ id: "6", name: "Eve" }, "undercover", deck[0]);
+
+    expect(assignment).toEqual({
+      player: { id: "6", name: "Eve" },
+      role: "undercover",
+      word: "Italy",
+    });
   });
 
   it("rejects role counts that do not match the player count", () => {
@@ -356,6 +368,13 @@ describe("chooseRandomActiveAssignment", () => {
     const eliminatedIds = new Set(round.assignments.map((assignment) => assignment.player.id));
 
     expect(() => chooseRandomActiveAssignment(round.assignments, eliminatedIds)).toThrow("no active players");
+  });
+});
+
+describe("pickRandomRole", () => {
+  it("returns a valid role from the injected RNG", () => {
+    expect(pickRandomRole(() => 0)).toBe("civilian");
+    expect(pickRandomRole(() => 0.99)).toBe("mrWhite");
   });
 });
 

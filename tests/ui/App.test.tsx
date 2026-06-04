@@ -144,6 +144,22 @@ describe("App — round flow", () => {
     expect(screen.getByRole("heading", { name: "Players" })).toBeInTheDocument();
   });
 
+  it("adds a mid-round player with a random role and sends them to reveal", async () => {
+    const user = userEvent.setup();
+    seedNamedGame(fourPlayerGame, fourPlayerCounts);
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Start round" }));
+    await revealEveryPlayer(user, fourPlayerGame.length);
+
+    await user.click(screen.getByRole("button", { name: "Add player" }));
+    await user.type(screen.getByLabelText("New player name"), "Eve");
+    await user.click(screen.getByRole("button", { name: "Add and reveal" }));
+
+    expect(screen.getByRole("button", { name: "Reveal word" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Eve" })).toBeInTheDocument();
+    expect(screen.getByText("5/5")).toBeInTheDocument();
+  });
+
   it("lets an eliminated undercover keep playing after a correct civilian-word guess", async () => {
     const user = userEvent.setup();
     seedNamedGame(fourPlayerGame, fourPlayerCounts);

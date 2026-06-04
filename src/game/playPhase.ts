@@ -5,4 +5,5 @@ export type PlayPhase =
   | "mrWhiteGuess"
   | "undercoverGuess"
   | "eliminationReveal"
+  | "addPlayer"
   | "gameOver";

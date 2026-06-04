@@ -595,6 +595,28 @@ select:focus {
   animation: page-in 0.2s ease-out;
 }
 
+.top-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.round-add-player-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.add-player-card {
+  align-content: start;
+  text-align: left;
+}
+
+.add-player-card input {
+  width: 100%;
+}
+
 .player-strip {
   display: flex;
   gap: 8px;

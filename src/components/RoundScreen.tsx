@@ -36,6 +36,12 @@ type RoundScreenProps = {
   gameStatus: GameStatus;
   roundHistory: RoundHistoryEntry[];
   sessionStats: SessionStats;
+  addPlayerName: string;
+  roundError: string;
+  onOpenAddPlayer: () => void;
+  onCancelAddPlayer: () => void;
+  onAddPlayerNameChange: (name: string) => void;
+  onConfirmAddPlayer: () => void;
   onBackToSetup: () => void;
   onContinuePlaying: () => void;
   onReveal: () => void;
@@ -78,6 +84,12 @@ export function RoundScreen({
   gameStatus,
   roundHistory,
   sessionStats,
+  addPlayerName,
+  roundError,
+  onOpenAddPlayer,
+  onCancelAddPlayer,
+  onAddPlayerNameChange,
+  onConfirmAddPlayer,
   onBackToSetup,
   onContinuePlaying,
   onReveal,
@@ -104,11 +116,56 @@ export function RoundScreen({
             <button className="secondary-button" type="button" onClick={onBackToSetup}>
               Back to setup
             </button>
-            <span>{activeAssignments.length} active</span>
+            <div className="top-bar-actions">
+              <span>{activeAssignments.length} active</span>
+              {phase !== "addPlayer" && (
+                <button
+                  className="secondary-button round-add-player-button"
+                  type="button"
+                  onClick={onOpenAddPlayer}
+                >
+                  Add player
+                </button>
+              )}
+            </div>
           </div>
         )}
 
         <PlayerStrip assignments={round.assignments} eliminatedIds={eliminatedIds} turnStarterId={turnStarter?.player.id} />
+
+        {phase === "addPlayer" && (
+          <div className="round-card add-player-card">
+            <div className="phase-band">
+              <span>Join round</span>
+              <strong>New player</strong>
+            </div>
+            <p className="muted-text">Add someone mid-round. They get a random role, then privately reveal their word.</p>
+
+            <input
+              aria-label="New player name"
+              autoFocus
+              placeholder="Player name"
+              value={addPlayerName}
+              onChange={(event) => onAddPlayerNameChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  onConfirmAddPlayer();
+                }
+              }}
+            />
+
+            {roundError && <p className="error-text">{roundError}</p>}
+
+            <div className="button-row">
+              <button className="secondary-button" type="button" onClick={onCancelAddPlayer}>
+                Cancel
+              </button>
+              <button className="primary-button" type="button" onClick={onConfirmAddPlayer}>
+                Add and reveal
+              </button>
+            </div>
+          </div>
+        )}
 
         {phase === "reveal" && activeAssignment && (
           <div
