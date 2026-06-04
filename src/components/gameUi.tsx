@@ -276,6 +276,12 @@ export function SessionSummary({ history, stats, onClear, title = "Session", fra
 
       {hasPlayers ? (
         <div className="leader-list">
+          <div className="leader-header" aria-hidden="true">
+            <span>#</span>
+            <span>Player</span>
+            <span>Points</span>
+            <span>Wins</span>
+          </div>
           {stats.players.map((player, index) => (
             <div className="leader-row" key={player.name}>
               <span className="leader-rank">{index + 1}</span>
