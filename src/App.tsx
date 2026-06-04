@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { WordHelp } from "./WordHelp";
 import { wordPairs } from "./decks/wordPairs";
 import {
@@ -55,6 +55,8 @@ function App() {
   const [lastElimination, setLastElimination] = useState("");
   const [error, setError] = useState("");
   const [leavingId, setLeavingId] = useState<string | null>(null);
+  const [draggingPlayerId, setDraggingPlayerId] = useState<string | null>(null);
+  const [dropTargetPlayerId, setDropTargetPlayerId] = useState<string | null>(null);
 
   const totalRoles = counts.civilian + counts.undercover + counts.mrWhite;
   const activeAssignment = round?.assignments[activeIndex];
@@ -155,6 +157,57 @@ function App() {
       updateCounts(trimCountsToPlayers(counts, nextPlayers.length));
       setLeavingId(null);
     }, 180);
+  }
+
+  function reorderPlayer(draggedId: string, targetId: string) {
+    if (draggedId === targetId) {
+      return;
+    }
+
+    const draggedIndex = players.findIndex((player) => player.id === draggedId);
+    const targetIndex = players.findIndex((player) => player.id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      return;
+    }
+
+    const nextPlayers = [...players];
+    const [draggedPlayer] = nextPlayers.splice(draggedIndex, 1);
+    nextPlayers.splice(targetIndex, 0, draggedPlayer);
+    updatePlayers(nextPlayers);
+  }
+
+  function startPlayerDrag(id: string, event: DragEvent<HTMLElement>) {
+    setDraggingPlayerId(id);
+    setDropTargetPlayerId(null);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", id);
+  }
+
+  function dragPlayerOver(id: string, event: DragEvent<HTMLDivElement>) {
+    if (!draggingPlayerId || draggingPlayerId === id) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDropTargetPlayerId(id);
+  }
+
+  function dropPlayer(id: string, event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const draggedId = draggingPlayerId ?? event.dataTransfer.getData("text/plain");
+    setDraggingPlayerId(null);
+    setDropTargetPlayerId(null);
+
+    if (draggedId) {
+      reorderPlayer(draggedId, id);
+    }
+  }
+
+  function finishPlayerDrag() {
+    setDraggingPlayerId(null);
+    setDropTargetPlayerId(null);
   }
 
   function changeCount(role: keyof RoleCounts, delta: number) {
@@ -336,10 +389,15 @@ function App() {
                 </>
               ) : (
                 <>
-                  <div className="secret-box">
+                  <div className={`secret-box${activeAssignment.role === "mrWhite" ? " is-mr-white" : ""}`}>
                     {activeAssignment.word && <WordHelp word={activeAssignment.word} />}
-                    {showRoles && <div className="role-name">{roleLabel(activeAssignment.role)}</div>}
-                    <FitText className="secret-word" text={activeAssignment.word ?? "No word"} />
+                    {activeAssignment.role === "mrWhite" && (
+                      <img className="mr-white-role-art" src="/mr-white-role.png" alt="" />
+                    )}
+                    {showRoles && activeAssignment.role !== "mrWhite" && (
+                      <div className="role-name">{roleLabel(activeAssignment.role)}</div>
+                    )}
+                    <FitText className="secret-word" text={activeAssignment.word ?? roleLabel(activeAssignment.role)} />
                   </div>
                   <button className="primary-button" type="button" onClick={goToNextPlayer}>
                     Hide and continue
@@ -521,7 +579,25 @@ function App() {
 
             <div className="player-list">
               {players.map((player, index) => (
-                <div className={`player-row${leavingId === player.id ? " is-leaving" : ""}`} key={player.id}>
+                <div
+                  className={`player-row${leavingId === player.id ? " is-leaving" : ""}${
+                    draggingPlayerId === player.id ? " is-dragging" : ""
+                  }${dropTargetPlayerId === player.id ? " is-drop-target" : ""}`}
+                  key={player.id}
+                  onDragOver={(event) => dragPlayerOver(player.id, event)}
+                  onDrop={(event) => dropPlayer(player.id, event)}
+                >
+                  <button
+                    aria-label={`Move ${player.name || `Player ${index + 1}`}`}
+                    className="drag-handle"
+                    draggable
+                    type="button"
+                    title="Drag to reorder"
+                    onDragEnd={finishPlayerDrag}
+                    onDragStart={(event) => startPlayerDrag(player.id, event)}
+                  >
+                    ::
+                  </button>
                   <PlayerAvatar
                     className="player-token"
                     fallback={String(index + 1)}
@@ -575,7 +651,7 @@ function App() {
             />
 
             <label className="toggle-row">
-              <span>Show roles during reveal</span>
+              <span>Show role during word reveal</span>
               <input
                 type="checkbox"
                 checked={showRoles}
