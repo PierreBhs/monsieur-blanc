@@ -2,6 +2,8 @@
 
 A simple offline-first web version of Mr. White. One host adds the players, starts a round, and passes the device so each player can privately reveal their role.
 
+![](public/readme.png)
+
 ## Run locally
 
 ```sh
