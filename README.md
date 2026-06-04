@@ -15,6 +15,12 @@ npm run dev
 npm run build
 ```
 
+## Tests
+
+```sh
+npm test
+```
+
 ## Deploy on Cloudflare Pages
 
 - Build command: `npm run build`

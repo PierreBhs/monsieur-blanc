@@ -1,11 +1,22 @@
+/**
+ * Test plan — src/game/session.ts (scoring, history, ranking)
+ *
+ * Functions under test:
+ *   - createRoundHistoryEntry: builds a history record + per-player scores
+ *   - appendRoundHistory:      prepends newest, trims to the limit
+ *   - calculateSessionStats:   tallies team wins and ranks players by points
+ *
+ * Scenarios: each win type's scoring, the history limit, ranking with
+ * tie-breaks, the legacy entry fallback (no `scores` field), and empty input.
+ */
 import { describe, expect, it } from "vitest";
 import {
   appendRoundHistory,
   calculateSessionStats,
   createRoundHistoryEntry,
   type RoundHistoryEntry,
-} from "./session";
-import type { PlayerAssignment } from "./types";
+} from "../../src/game/session";
+import type { PlayerAssignment } from "../../src/game/types";
 
 const assignments: PlayerAssignment[] = [
   { player: { id: "1", name: "Ada" }, role: "civilian", word: "France" },
@@ -105,6 +116,32 @@ describe("calculateSessionStats", () => {
       { name: "Ada", points: 4, wins: 2 },
       { name: "Ben", points: 4, wins: 2 },
       { name: "Cam", points: 0, wins: 0 },
+    ]);
+  });
+
+  it("returns empty totals for no history and no players", () => {
+    expect(calculateSessionStats([])).toEqual({
+      roundsPlayed: 0,
+      wins: { civilians: 0, infiltrators: 0, mrWhite: 0 },
+      players: [],
+    });
+  });
+
+  it("falls back to 1 point per winner for legacy entries without scores", () => {
+    const legacyEntry = {
+      id: "legacy",
+      completedAt: "2026-06-04T12:00:00.000Z",
+      winner: "civilians",
+      reason: "All infiltrators are out.",
+      word: "France",
+      winners: ["Ada", "Ben"],
+    } as unknown as RoundHistoryEntry;
+
+    const stats = calculateSessionStats([legacyEntry]);
+
+    expect(stats.players).toEqual([
+      { name: "Ada", points: 1, wins: 1 },
+      { name: "Ben", points: 1, wins: 1 },
     ]);
   });
 });

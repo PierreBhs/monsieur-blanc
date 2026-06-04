@@ -63,6 +63,11 @@ export function validateConfig(config: RoundConfig): void {
     throw new Error("Every player needs a name.");
   }
 
+  const normalizedNames = playerNames.map((name) => name.toLocaleLowerCase());
+  if (new Set(normalizedNames).size !== normalizedNames.length) {
+    throw new Error("Every player needs a unique name.");
+  }
+
   if (roles.some((role) => !Number.isInteger(config.counts[role]) || config.counts[role] < 0)) {
     throw new Error("Role counts must be whole numbers.");
   }
@@ -71,8 +76,8 @@ export function validateConfig(config: RoundConfig): void {
     throw new Error("Add at least 1 civilian.");
   }
 
-  if (config.counts.undercover + config.counts.mrWhite < 1) {
-    throw new Error("Add at least 1 undercover or Mr. White.");
+  if (config.counts.undercover < 1) {
+    throw new Error("Add at least 1 undercover.");
   }
 
   if (totalRoles !== config.players.length) {
