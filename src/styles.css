@@ -217,25 +217,58 @@ h2 {
 
 .player-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+}
+
+.player-row-slot {
+  display: grid;
+  gap: 8px;
 }
 
 .player-row {
   display: grid;
-  grid-template-columns: 34px 44px minmax(0, 1fr) 40px;
+  grid-template-columns: 44px 44px minmax(0, 1fr) 40px;
   align-items: center;
   gap: 10px;
   animation: page-in 0.18s ease-out both;
+  transition: opacity 0.12s ease-out, scale 0.12s ease-out;
 }
 
 .player-row.is-dragging {
-  opacity: 0.45;
+  opacity: 0.58;
+  scale: 0.98;
 }
 
-.player-row.is-drop-target {
-  border-radius: 8px;
-  outline: 3px dashed var(--danger);
-  outline-offset: 3px;
+.player-insert-marker {
+  position: relative;
+  height: 12px;
+  margin: -2px 0;
+}
+
+.player-insert-marker::before {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  left: 6px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  box-shadow: 3px 3px 0 var(--border);
+  content: "";
+  translate: 0 -50%;
+}
+
+.player-insert-marker::after {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--border);
+  border-radius: 50%;
+  background: var(--danger);
+  content: "";
+  translate: 0 -50%;
 }
 
 .player-row.is-leaving {
@@ -243,8 +276,8 @@ h2 {
 }
 
 .drag-handle {
-  width: 34px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 3px solid var(--border);
   border-radius: 8px;
   color: var(--muted);
@@ -254,6 +287,9 @@ h2 {
   letter-spacing: 0;
   cursor: grab;
   box-shadow: 3px 3px 0 var(--border);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .drag-handle:hover {

@@ -14,7 +14,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SetupScreen } from "../../src/components/SetupScreen";
 import type { PlayerInput, RoleCounts } from "../../src/game/types";
@@ -46,7 +46,7 @@ function makeProps(overrides: Partial<ComponentProps<typeof SetupScreen>> = {}) 
     error: "",
     leavingId: null,
     draggingPlayerId: null,
-    dropTargetPlayerId: null,
+    dropInsertionIndex: null,
     roundHistory: [],
     sessionStats: { roundsPlayed: 0, wins: { civilians: 0, infiltrators: 0, mrWhite: 0 }, players: [] },
     onAddPlayer: vi.fn(),
@@ -54,8 +54,7 @@ function makeProps(overrides: Partial<ComponentProps<typeof SetupScreen>> = {}) 
     onPlayerNameChange: vi.fn(),
     onPlayerAvatarChange: vi.fn(),
     onPlayerDragStart: vi.fn(),
-    onPlayerDragOver: vi.fn(),
-    onPlayerDrop: vi.fn(),
+    onPlayerDragMove: vi.fn(),
     onPlayerDragEnd: vi.fn(),
     onRoleCountChange: vi.fn(),
     onShowRolesChange: vi.fn(),
@@ -143,5 +142,27 @@ describe("SetupScreen", () => {
     render(<SetupScreen {...makeProps({ error: "Keep at least 3 players." })} />);
 
     expect(screen.getByText("Keep at least 3 players.")).toBeInTheDocument();
+  });
+
+  it("shows an insertion marker between players while dragging", () => {
+    const { container } = render(<SetupScreen {...makeProps({ draggingPlayerId: "1", dropInsertionIndex: 1 })} />);
+
+    expect(container.querySelectorAll(".player-insert-marker")).toHaveLength(1);
+  });
+
+  it("wires player reordering through pointer events", () => {
+    const onPlayerDragStart = vi.fn();
+    const onPlayerDragMove = vi.fn();
+    const onPlayerDragEnd = vi.fn();
+    render(<SetupScreen {...makeProps({ onPlayerDragStart, onPlayerDragMove, onPlayerDragEnd })} />);
+
+    const handle = screen.getByRole("button", { name: "Move Ada" });
+    fireEvent.pointerDown(handle, { pointerId: 1, clientY: 10 });
+    fireEvent.pointerMove(handle, { pointerId: 1, clientY: 40 });
+    fireEvent.pointerUp(handle, { pointerId: 1, clientY: 40 });
+
+    expect(onPlayerDragStart).toHaveBeenCalledWith("1", expect.anything());
+    expect(onPlayerDragMove).toHaveBeenCalledTimes(1);
+    expect(onPlayerDragEnd).toHaveBeenCalledTimes(1);
   });
 });

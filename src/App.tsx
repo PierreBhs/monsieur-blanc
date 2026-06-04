@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type PointerEvent } from "react";
 import { RoundScreen } from "./components/RoundScreen";
 import { SetupScreen } from "./components/SetupScreen";
 import { roleTotal } from "./components/gameUi";
@@ -77,7 +77,7 @@ function App() {
   const [error, setError] = useState("");
   const [leavingId, setLeavingId] = useState<string | null>(null);
   const [draggingPlayerId, setDraggingPlayerId] = useState<string | null>(null);
-  const [dropTargetPlayerId, setDropTargetPlayerId] = useState<string | null>(null);
+  const [dropInsertionIndex, setDropInsertionIndex] = useState<number | null>(null);
 
   const totalRoles = roleTotal(counts);
   const activeAssignment = round?.assignments[activeIndex];
@@ -113,6 +113,17 @@ function App() {
       setTimerRunning(false);
     }
   }, [remainingSeconds]);
+
+  useEffect(() => {
+    if (!round) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
+  }, [phase, round]);
 
   function updatePlayers(nextPlayers: PlayerInput[]) {
     setPlayers(nextPlayers);
@@ -212,55 +223,51 @@ function App() {
     }, 180);
   }
 
-  function reorderPlayer(draggedId: string, targetId: string) {
-    if (draggedId === targetId) {
+  function reorderPlayer(draggedId: string, insertionIndex: number) {
+    const draggedIndex = players.findIndex((player) => player.id === draggedId);
+
+    if (draggedIndex === -1) {
       return;
     }
 
-    const draggedIndex = players.findIndex((player) => player.id === draggedId);
-    const targetIndex = players.findIndex((player) => player.id === targetId);
+    const boundedInsertionIndex = clamp(insertionIndex, 0, players.length);
 
-    if (draggedIndex === -1 || targetIndex === -1) {
+    if (boundedInsertionIndex === draggedIndex || boundedInsertionIndex === draggedIndex + 1) {
       return;
     }
 
     const nextPlayers = [...players];
     const [draggedPlayer] = nextPlayers.splice(draggedIndex, 1);
+    const targetIndex = boundedInsertionIndex > draggedIndex ? boundedInsertionIndex - 1 : boundedInsertionIndex;
     nextPlayers.splice(targetIndex, 0, draggedPlayer);
     updatePlayers(nextPlayers);
   }
 
-  function startPlayerDrag(id: string, event: DragEvent<HTMLElement>) {
+  function startPlayerDrag(id: string, event: PointerEvent<HTMLButtonElement>) {
     setDraggingPlayerId(id);
-    setDropTargetPlayerId(null);
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", id);
+    setDropInsertionIndex(players.findIndex((player) => player.id === id));
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
   }
 
-  function dragPlayerOver(id: string, event: DragEvent<HTMLDivElement>) {
-    if (!draggingPlayerId || draggingPlayerId === id) {
+  function moveDraggedPlayer(event: PointerEvent<HTMLButtonElement>) {
+    if (!draggingPlayerId) {
       return;
     }
 
     event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    setDropTargetPlayerId(id);
+    setDropInsertionIndex(playerInsertionIndexFromPoint(event.clientY, draggingPlayerId, players));
   }
 
-  function dropPlayer(id: string, event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    const draggedId = draggingPlayerId ?? event.dataTransfer.getData("text/plain");
-    setDraggingPlayerId(null);
-    setDropTargetPlayerId(null);
+  function finishPlayerDrag(event?: PointerEvent<HTMLButtonElement>) {
+    event?.preventDefault();
 
-    if (draggedId) {
-      reorderPlayer(draggedId, id);
+    if (draggingPlayerId && dropInsertionIndex !== null) {
+      reorderPlayer(draggingPlayerId, dropInsertionIndex);
     }
-  }
 
-  function finishPlayerDrag() {
     setDraggingPlayerId(null);
-    setDropTargetPlayerId(null);
+    setDropInsertionIndex(null);
   }
 
   function changeCount(role: keyof RoleCounts, delta: number) {
@@ -437,7 +444,7 @@ function App() {
     setError("");
     setLeavingId(null);
     setDraggingPlayerId(null);
-    setDropTargetPlayerId(null);
+    setDropInsertionIndex(null);
   }
 
   if (round) {
@@ -503,7 +510,7 @@ function App() {
       error={error}
       leavingId={leavingId}
       draggingPlayerId={draggingPlayerId}
-      dropTargetPlayerId={dropTargetPlayerId}
+      dropInsertionIndex={dropInsertionIndex}
       roundHistory={roundHistory}
       sessionStats={sessionStats}
       onAddPlayer={addPlayer}
@@ -511,8 +518,7 @@ function App() {
       onPlayerNameChange={updatePlayerName}
       onPlayerAvatarChange={changePlayerAvatar}
       onPlayerDragStart={startPlayerDrag}
-      onPlayerDragOver={dragPlayerOver}
-      onPlayerDrop={dropPlayer}
+      onPlayerDragMove={moveDraggedPlayer}
       onPlayerDragEnd={finishPlayerDrag}
       onRoleCountChange={changeCount}
       onShowRolesChange={updateShowRoles}
@@ -679,6 +685,29 @@ function trimCountsToPlayers(counts: RoleCounts, playerCount: number): RoleCount
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function playerInsertionIndexFromPoint(clientY: number, draggedId: string, players: PlayerInput[]): number {
+  const rows = Array.from(document.querySelectorAll<HTMLElement>("[data-player-row-id]")).filter(
+    (row) => row.dataset.playerRowId !== draggedId,
+  );
+
+  for (const row of rows) {
+    const playerId = row.dataset.playerRowId;
+    const playerIndex = players.findIndex((player) => player.id === playerId);
+
+    if (playerIndex === -1) {
+      continue;
+    }
+
+    const rect = row.getBoundingClientRect();
+
+    if (clientY < rect.top + rect.height / 2) {
+      return playerIndex;
+    }
+  }
+
+  return players.length;
 }
 
 export default App;
