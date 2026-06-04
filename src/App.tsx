@@ -26,6 +26,7 @@ import {
   type RoundHistoryEntry,
 } from "./game/session";
 import type { GameStatus, PlayerAssignment, PlayerInput, RoleCounts, Round } from "./game/types";
+import { pickMrWhiteVariant, preloadMrWhiteVariant, type MrWhiteVariant } from "./mrWhiteVariants";
 
 const savedPlayersKey = "mr-white.players";
 const savedCountsKey = "mr-white.counts";
@@ -63,6 +64,7 @@ function App() {
   const [deckCategory, setDeckCategory] = useState(loadDeckCategory);
   const [deckDifficulty, setDeckDifficulty] = useState<DifficultyFilter>(loadDeckDifficulty);
   const [round, setRound] = useState<Round | null>(null);
+  const [mrWhiteVariant, setMrWhiteVariant] = useState<MrWhiteVariant | null>(null);
   const [phase, setPhase] = useState<PlayPhase>("reveal");
   const [activeIndex, setActiveIndex] = useState(0);
   const [isRevealed, setIsRevealed] = useState(false);
@@ -311,7 +313,11 @@ function App() {
         deck: filteredWordPairs,
       });
 
+      const nextMrWhiteVariant = pickMrWhiteVariant();
+      preloadMrWhiteVariant(nextMrWhiteVariant.src);
+
       setRound(nextRound);
+      setMrWhiteVariant(nextMrWhiteVariant);
       setPhase("reveal");
       setActiveIndex(0);
       setIsRevealed(false);
@@ -480,6 +486,7 @@ function App() {
   function resetRound() {
     logger.endGame("back-to-setup");
     setRound(null);
+    setMrWhiteVariant(null);
     setPhase("reveal");
     setActiveIndex(0);
     setIsRevealed(false);
@@ -502,6 +509,7 @@ function App() {
     return (
       <RoundScreen
         round={round}
+        mrWhiteVariant={mrWhiteVariant ?? undefined}
         phase={phase}
         activeAssignment={activeAssignment}
         activeIndex={activeIndex}

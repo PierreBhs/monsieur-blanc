@@ -4,7 +4,7 @@ const shellAssets = [
   "/index.html",
   "/manifest.webmanifest",
   "/mr-white-mark.svg",
-  "/mr-white-role.png",
+  "/mr-white-variants/walter-white.png",
 ];
 
 self.addEventListener("install", (event) => {
