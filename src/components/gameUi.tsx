@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type ChangeEvent } from "react";
+import type { RoundHistoryEntry, SessionStats } from "../game/session";
 import type { GameStatus, PlayerAssignment, PlayerInput, RoleCounts } from "../game/types";
 
 type PlayerStripProps = {
@@ -191,6 +192,68 @@ export function TimerSetting({ seconds, onMinus, onPlus }: TimerSettingProps) {
           +
         </button>
       </div>
+    </div>
+  );
+}
+
+type SessionSummaryProps = {
+  history: RoundHistoryEntry[];
+  stats: SessionStats;
+  onClear: () => void;
+};
+
+export function SessionSummary({ history, stats, onClear }: SessionSummaryProps) {
+  return (
+    <section className="panel session-panel">
+      <div className="panel-heading">
+        <h2>Session</h2>
+        {history.length > 0 && (
+          <button className="secondary-button compact-button" type="button" onClick={onClear}>
+            Clear
+          </button>
+        )}
+      </div>
+
+      {history.length === 0 ? (
+        <p className="muted-text">No completed rounds yet.</p>
+      ) : (
+        <>
+          <div className="session-totals">
+            <SessionTotal label="Rounds" value={stats.roundsPlayed} />
+            <SessionTotal label="Civilians" value={stats.wins.civilians} />
+            <SessionTotal label="Infiltrators" value={stats.wins.infiltrators} />
+            <SessionTotal label="Mr. White" value={stats.wins.mrWhite} />
+          </div>
+
+          <div className="leader-list">
+            {stats.players.slice(0, 5).map((player) => (
+              <div className="leader-row" key={player.name}>
+                <span>{player.name}</span>
+                <strong>{player.wins}</strong>
+              </div>
+            ))}
+          </div>
+
+          <div className="history-list">
+            {history.slice(0, 4).map((entry) => (
+              <div className="history-row" key={entry.id}>
+                <span>{winnerLabel(entry.winner)}</span>
+                <strong>{entry.word || "No word"}</strong>
+                <small>{entry.winners.join(", ")}</small>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function SessionTotal({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }

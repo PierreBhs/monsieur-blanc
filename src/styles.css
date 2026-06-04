@@ -185,6 +185,11 @@ h2 {
   background: #c9f4db;
 }
 
+.session-panel {
+  margin-top: 18px;
+  background: #d7f0ff;
+}
+
 .panel-heading,
 .top-bar,
 .phase-band {
@@ -832,6 +837,85 @@ input:focus {
   padding: 0 14px;
 }
 
+.compact-button {
+  min-height: 36px;
+  padding: 0 10px;
+  box-shadow: 3px 3px 0 var(--border);
+}
+
+.session-totals,
+.leader-list,
+.history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.session-totals {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.session-totals > div,
+.leader-row,
+.history-row {
+  border: 3px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.session-totals > div {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
+.session-totals span,
+.history-row span,
+.history-row small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.session-totals strong {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.leader-list {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin-bottom: 14px;
+}
+
+.leader-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.leader-row span,
+.history-row strong,
+.history-row small {
+  overflow-wrap: anywhere;
+}
+
+.leader-row span,
+.history-row strong {
+  font-weight: 900;
+}
+
+.history-list {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.history-row {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     padding: 14px;
@@ -883,6 +967,11 @@ input:focus {
 
   .summary-row span:last-child {
     text-align: left;
+  }
+
+  .session-totals,
+  .history-list {
+    grid-template-columns: 1fr 1fr;
   }
 
   .help-window {

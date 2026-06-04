@@ -7,6 +7,7 @@ import {
   PlayerSpotlight,
   PlayerStrip,
   RoleCounter,
+  SessionSummary,
   TimerSetting,
   roleLabel,
   roleTotal,
@@ -19,6 +20,12 @@ import {
   evaluateGameStatus,
   isCorrectMrWhiteGuess,
 } from "./game/core";
+import {
+  appendRoundHistory,
+  calculateSessionStats,
+  createRoundHistoryEntry,
+  type RoundHistoryEntry,
+} from "./game/session";
 import type { GameStatus, PlayerAssignment, PlayerInput, RoleCounts, Round } from "./game/types";
 
 const savedPlayersKey = "mr-white.players";
@@ -26,6 +33,7 @@ const savedCountsKey = "mr-white.counts";
 const savedShowRolesKey = "mr-white.show-roles";
 const savedTimerEnabledKey = "mr-white.timer-enabled";
 const savedTimerSecondsKey = "mr-white.timer-seconds";
+const savedRoundHistoryKey = "mr-white.round-history";
 const defaultTimerSeconds = 120;
 const minTimerSeconds = 30;
 const maxTimerSeconds = 600;
@@ -64,6 +72,7 @@ function App() {
   const [pendingElimination, setPendingElimination] = useState<PlayerAssignment | null>(null);
   const [mrWhiteGuess, setMrWhiteGuess] = useState("");
   const [gameStatus, setGameStatus] = useState<GameStatus>({ state: "playing" });
+  const [roundHistory, setRoundHistory] = useState<RoundHistoryEntry[]>(loadRoundHistory);
   const [lastElimination, setLastElimination] = useState("");
   const [error, setError] = useState("");
   const [leavingId, setLeavingId] = useState<string | null>(null);
@@ -79,6 +88,7 @@ function App() {
     const categories = new Set(wordPairs.map((pair) => pair.category));
     return `${wordPairs.length} pairs across ${categories.size} categories`;
   }, []);
+  const sessionStats = useMemo(() => calculateSessionStats(roundHistory), [roundHistory]);
 
   useEffect(() => {
     if (phase !== "turn" || !timerEnabled || !timerRunning || remainingSeconds <= 0) {
@@ -122,6 +132,11 @@ function App() {
     setTimerSeconds(nextTimerSeconds);
     setRemainingSeconds(nextTimerSeconds);
     localStorage.setItem(savedTimerSecondsKey, JSON.stringify(nextTimerSeconds));
+  }
+
+  function updateRoundHistory(nextRoundHistory: RoundHistoryEntry[]) {
+    setRoundHistory(nextRoundHistory);
+    localStorage.setItem(savedRoundHistoryKey, JSON.stringify(nextRoundHistory));
   }
 
   function updatePlayerName(id: string, name: string) {
@@ -305,11 +320,13 @@ function App() {
     }
 
     if (isCorrectMrWhiteGuess(mrWhiteGuess, round.wordPair.civilian)) {
-      setGameStatus({
+      const nextStatus: GameStatus = {
         state: "won",
         winner: "mrWhite",
         reason: `${pendingElimination.player.name} guessed "${round.wordPair.civilian}".`,
-      });
+      };
+      recordRoundResult(round.assignments, nextStatus);
+      setGameStatus(nextStatus);
       setPhase("gameOver");
       return;
     }
@@ -331,7 +348,23 @@ function App() {
     setMrWhiteGuess("");
     setGameStatus(nextStatus);
     setLastElimination(`${assignment.player.name} is out.`);
+    if (nextStatus.state === "won") {
+      recordRoundResult(round.assignments, nextStatus);
+    }
     setPhase("eliminationReveal");
+  }
+
+  function recordRoundResult(assignments: PlayerAssignment[], status: GameStatus) {
+    if (status.state !== "won") {
+      return;
+    }
+
+    const entry = createRoundHistoryEntry(assignments, status, new Date().toISOString());
+    updateRoundHistory(appendRoundHistory(roundHistory, entry));
+  }
+
+  function clearRoundHistory() {
+    updateRoundHistory([]);
   }
 
   function continueAfterElimination() {
@@ -696,6 +729,8 @@ function App() {
             </div>
           </section>
         </div>
+
+        <SessionSummary history={roundHistory} stats={sessionStats} onClear={clearRoundHistory} />
       </section>
     </main>
   );
@@ -786,6 +821,21 @@ function loadTimerSeconds(): number {
   const parsedSeconds = Number(JSON.parse(saved));
 
   return Number.isFinite(parsedSeconds) ? clamp(parsedSeconds, minTimerSeconds, maxTimerSeconds) : defaultTimerSeconds;
+}
+
+function loadRoundHistory(): RoundHistoryEntry[] {
+  const saved = localStorage.getItem(savedRoundHistoryKey);
+
+  if (!saved) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? (parsed as RoundHistoryEntry[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 function trimCountsToPlayers(counts: RoleCounts, playerCount: number): RoleCounts {
