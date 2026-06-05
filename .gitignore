@@ -1,3 +1,6 @@
 node_modules
 dist
 *.tsbuildinfo
+
+# Downloaded action logs (see src/log/)
+*.log
