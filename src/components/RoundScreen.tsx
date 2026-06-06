@@ -1,3 +1,5 @@
+import { MrWhiteVariantHelp } from "../MrWhiteVariantHelp";
+import type { MrWhiteVariant } from "../mrWhiteVariants";
 import { WordHelp } from "../WordHelp";
 import type { PlayPhase } from "../game/playPhase";
 import type { RoundHistoryEntry, SessionStats } from "../game/session";
@@ -15,6 +17,7 @@ import {
 
 type RoundScreenProps = {
   round: Round;
+  mrWhiteVariant?: MrWhiteVariant;
   phase: PlayPhase;
   activeAssignment?: PlayerAssignment;
   activeIndex: number;
@@ -52,6 +55,7 @@ type RoundScreenProps = {
 
 export function RoundScreen({
   round,
+  mrWhiteVariant,
   phase,
   activeAssignment,
   activeIndex,
@@ -125,8 +129,11 @@ export function RoundScreen({
               <>
                 <div className={`secret-box${activeAssignment.role === "mrWhite" ? " is-mr-white" : ""}`}>
                   {activeAssignment.word && <WordHelp word={activeAssignment.word} />}
-                  {activeAssignment.role === "mrWhite" && (
-                    <img className="mr-white-role-art" src="/mr-white-role.png" alt="" />
+                  {activeAssignment.role === "mrWhite" && mrWhiteVariant && (
+                    <div className="mr-white-art-frame">
+                      <MrWhiteVariantHelp variant={mrWhiteVariant} />
+                      <img className="mr-white-role-art" src={mrWhiteVariant.src} alt="" />
+                    </div>
                   )}
                   {showRoles && activeAssignment.role !== "mrWhite" && (
                     <div className="role-name">{roleLabel(activeAssignment.role)}</div>

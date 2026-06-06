@@ -744,6 +744,18 @@ select:focus {
   gap: 14px;
 }
 
+.mr-white-art-frame {
+  position: relative;
+  display: inline-block;
+}
+
+.mr-white-art-frame .help-button {
+  top: -14px;
+  right: -14px;
+  font-size: 1.1rem;
+  font-style: italic;
+}
+
 .mr-white-role-art {
   display: block;
   width: min(220px, 72vw);
